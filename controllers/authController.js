@@ -20,22 +20,22 @@ const registerSuperAdmin = async (req, res) => {
 };
 
 const login = async (req, res) => {
-  try {
-    const { identifier, password } = req.body;
-
-    if (!identifier || !password) {
-      return res.status(400).json({ message: 'Username/email and password are required' });
+    try {
+      const { email, password } = req.body;
+  
+      if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password are required' });
+      }
+  
+      const result = await authService.login(email, password);
+      res.status(200).json({
+        message: 'Login successful',
+        data: result
+      });
+    } catch (error) {
+      res.status(401).json({ message: error.message });
     }
-
-    const result = await authService.login(identifier, password);
-    res.status(200).json({
-      message: 'Login successful',
-      data: result
-    });
-  } catch (error) {
-    res.status(401).json({ message: error.message });
-  }
-};
+  };
 
 const createAdmin = async (req, res) => {
   try {

@@ -4,9 +4,9 @@ const multer = require('multer');
 const authController = require('../controllers/authController');
 const { authenticate, authorizeSuperAdmin } = require('../middlewares/authMiddleware');
 
-// Setup multer for file upload
+// Setup multer for file upload using memory storage
 const upload = multer({ 
-  dest: 'uploads/',
+  storage: multer.memoryStorage(), // Simpan di memory, bukan di filesystem
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },

@@ -1,4 +1,4 @@
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const prisma = require('../configs/prisma');
 const { generateToken } = require('../configs/jwt');
 const imagekit = require('../configs/imagekit');
@@ -28,8 +28,8 @@ const register = async (username, email, password, profileImage = null, role = '
     // Upload profile image to ImageKit if provided
     if (profileImage) {
       try {
-        const fileBuffer = fs.readFileSync(profileImage.path);
-        const fileContent = fileBuffer.toString('base64');
+        // Dengan memory storage, profileImage.buffer sudah berisi data file
+        const fileContent = profileImage.buffer.toString('base64');
         
         const uploadResponse = await imagekit.upload({
           file: fileContent,
@@ -39,8 +39,7 @@ const register = async (username, email, password, profileImage = null, role = '
         
         profileImageUrl = uploadResponse.url;
         
-        // Clean up temporary file
-        fs.unlinkSync(profileImage.path);
+        // Tidak perlu clean up karena file tidak disimpan ke filesystem
       } catch (error) {
         console.error('Error uploading image:', error);
         throw new Error('Failed to upload profile image');
@@ -67,45 +66,40 @@ const register = async (username, email, password, profileImage = null, role = '
   }
 };
 
-const login = async (identifier, password) => {
-  try {
-    // Find user by username or email
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { username: identifier },
-          { email: identifier }
-        ]
+const login = async (email, password) => {
+    try {
+      // Find user by email only
+      const user = await prisma.user.findUnique({
+        where: { email }
+      });
+  
+      if (!user) {
+        throw new Error('Invalid credentials');
       }
-    });
-
-    if (!user) {
-      throw new Error('Invalid credentials');
+  
+      // Check password
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        throw new Error('Invalid credentials');
+      }
+  
+      // Generate JWT token
+      const token = generateToken({ 
+        userId: user.id,
+        role: user.role 
+      });
+  
+      // Remove password from response
+      const { password: _, ...userWithoutPassword } = user;
+      
+      return {
+        user: userWithoutPassword,
+        token
+      };
+    } catch (error) {
+      throw error;
     }
-
-    // Check password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      throw new Error('Invalid credentials');
-    }
-
-    // Generate JWT token
-    const token = generateToken({ 
-      userId: user.id,
-      role: user.role 
-    });
-
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user;
-    
-    return {
-      user: userWithoutPassword,
-      token
-    };
-  } catch (error) {
-    throw error;
-  }
-};
+  };
 
 const createAdmin = async (userData, creatorId) => {
   try {
