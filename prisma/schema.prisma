@@ -22,4 +22,42 @@ model User {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   createdBy   String?   // ID user yang membuat (untuk ADMIN yang dibuat oleh SUPERADMIN)
+  
+  // Relasi dengan DaftarPanti
+  daftarPantis DaftarPanti[]
+}
+
+model DaftarPanti {
+  id          String     @id @default(uuid())
+  judul       String
+  subjudul    String?
+  gambarUrl   String?    // URL gambar dari ImageKit
+  konten      String     @db.Text
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  penulis     User       @relation(fields: [penulisId], references: [id])
+  penulisId   String
+  
+  // Relasi dengan DetailPanti
+  detailPantis DetailPanti[]
+}
+
+model DetailPanti {
+  id                  String     @id @default(uuid())
+  namaPanti           String
+  yayasanPenaung      String
+  fokusPelayanPanti   String
+  alamatPanti         String
+  jumlahPengasuh      Int
+  jumlahPenghuni      Int
+  karakteristikPenghuni String?
+  jenisSumbangan      String?
+  kebutuhanBantuan    String?
+  nomorKontak         String?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  
+  // Relasi dengan DaftarPanti
+  daftarPanti         DaftarPanti @relation(fields: [daftarPantiId], references: [id])
+  daftarPantiId       String
 }
