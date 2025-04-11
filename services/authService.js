@@ -126,8 +126,33 @@ const createAdmin = async (userData, creatorId) => {
   }
 };
 
+const getAllAdmins = async () => {
+    try {
+      const admins = await prisma.user.findMany({
+        where: {
+          role: 'ADMIN'
+        },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          profileImage: true,
+          createdAt: true,
+          updatedAt: true,
+          createdBy: true,
+          role: true
+        }
+      });
+      
+      return admins;
+    } catch (error) {
+      throw error;
+    }
+  };
+
 module.exports = {
   register,
   login,
-  createAdmin
+  createAdmin,
+  getAllAdmins
 };

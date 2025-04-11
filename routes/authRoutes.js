@@ -26,5 +26,6 @@ router.post('/login', authController.login);
 // Protected routes
 router.get('/profile', authenticate, authController.getProfile);
 router.post('/create-admin', authenticate, authorizeSuperAdmin, upload.single('profileImage'), authController.createAdmin);
+router.get('/admins', authenticate, authorizeSuperAdmin, authController.getAllAdmins);
 
 module.exports = router;

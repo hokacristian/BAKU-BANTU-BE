@@ -75,9 +75,22 @@ const getProfile = async (req, res) => {
   }
 };
 
+const getAllAdmins = async (req, res) => {
+    try {
+      const admins = await authService.getAllAdmins();
+      res.status(200).json({
+        message: 'Admins fetched successfully',
+        data: admins
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  };
+
 module.exports = {
   registerSuperAdmin,
   login,
   createAdmin,
-  getProfile
+  getProfile,
+  getAllAdmins
 };
