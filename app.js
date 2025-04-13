@@ -4,6 +4,8 @@ require('dotenv').config();
 const path = require("path");
 const authRoutes = require('./routes/authRoutes');
 const pantiRoutes = require('./routes/pantiRoutes');
+const wilayahRoutes = require('./routes/wilayahRoutes');
+const volunteerRoutes = require('./routes/volunteerRoutes');
 
 const app = express();
 
@@ -21,6 +23,8 @@ app.use(express.json());
 // Routes
 app.use('/auth', authRoutes);
 app.use('/panti', pantiRoutes);
+app.use('/wilayah', wilayahRoutes);
+app.use('/volunteers', volunteerRoutes);
 
 
 

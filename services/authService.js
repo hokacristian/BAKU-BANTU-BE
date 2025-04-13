@@ -2,59 +2,27 @@ const bcrypt = require('bcryptjs');
 const prisma = require('../configs/prisma');
 const { generateToken } = require('../configs/jwt');
 const imagekit = require('../configs/imagekit');
-const fs = require('fs');
 
-const register = async (username, email, password, profileImage = null, role = 'ADMIN', createdBy = null) => {
+const register = async (email, password, role = 'ADMIN' = null) => {
   try {
-    // Check if username or email already exists
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { username },
-          { email }
-        ]
-      }
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
     });
 
     if (existingUser) {
-      throw new Error('Username or email already exists');
+      throw new Error('Email already exists');
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    let profileImageUrl = null;
-    
-    // Upload profile image to ImageKit if provided
-    if (profileImage) {
-      try {
-        // Dengan memory storage, profileImage.buffer sudah berisi data file
-        const fileContent = profileImage.buffer.toString('base64');
-        
-        const uploadResponse = await imagekit.upload({
-          file: fileContent,
-          fileName: `${username}-profile-${Date.now()}`,
-          folder: '/user-profiles'
-        });
-        
-        profileImageUrl = uploadResponse.url;
-        
-        // Tidak perlu clean up karena file tidak disimpan ke filesystem
-      } catch (error) {
-        console.error('Error uploading image:', error);
-        throw new Error('Failed to upload profile image');
-      }
-    }
-
     // Create user
     const user = await prisma.user.create({
       data: {
-        username,
         email,
         password: hashedPassword,
-        profileImage: profileImageUrl,
-        role,
-        createdBy
+        role
       }
     });
 
@@ -67,39 +35,43 @@ const register = async (username, email, password, profileImage = null, role = '
 };
 
 const login = async (email, password) => {
-    try {
-      // Find user by email only
-      const user = await prisma.user.findUnique({
-        where: { email }
-      });
-  
-      if (!user) {
-        throw new Error('Invalid credentials');
-      }
-  
-      // Check password
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid) {
-        throw new Error('Invalid credentials');
-      }
-  
-      // Generate JWT token
-      const token = generateToken({ 
-        userId: user.id,
-        role: user.role 
-      });
-  
-      // Remove password from response
-      const { password: _, ...userWithoutPassword } = user;
-      
-      return {
-        user: userWithoutPassword,
-        token
-      };
-    } catch (error) {
-      throw error;
+  try {
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (!user) {
+      throw new Error('Invalid credentials');
     }
-  };
+
+    // Check password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new Error('Invalid credentials');
+    }
+
+    // Generate JWT token
+    const token = generateToken({ 
+      userId: user.id,
+      role: user.role 
+    });
+
+    // Create response object with only necessary information
+    const userResponse = {
+      id: user.id,
+      email: user.email,
+      role: user.role
+    };
+    
+    return {
+      user: userResponse,
+      token
+    };
+  } catch (error) {
+    throw error;
+  }
+};
 
 const createAdmin = async (userData, creatorId) => {
   try {
@@ -112,47 +84,211 @@ const createAdmin = async (userData, creatorId) => {
       throw new Error('Only SUPERADMIN can create new admins');
     }
 
-    // Register new admin
-    return await register(
-      userData.username,
-      userData.email,
-      userData.password,
-      userData.profileImage,
-      'ADMIN',
-      creatorId
-    );
+    // Check if user with email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: userData.email }
+    });
+
+    if (existingUser) {
+      throw new Error('Email already exists');
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(userData.password, 10);
+    
+    // Upload profile image if provided
+    let profileImageUrl = null;
+    if (userData.profileImage) {
+      try {
+        const fileContent = userData.profileImage.buffer.toString('base64');
+        
+        const uploadResponse = await imagekit.upload({
+          file: fileContent,
+          fileName: `profile-${Date.now()}`,
+          folder: '/user-profiles'
+        });
+        
+        profileImageUrl = uploadResponse.url;
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        throw new Error('Failed to upload profile image');
+      }
+    }
+
+    // Create user with profile
+    const user = await prisma.user.create({
+      data: {
+        email: userData.email,
+        password: hashedPassword,
+        role: 'ADMIN',
+        profile: {
+          create: {
+            namaLengkap: userData.namaLengkap,
+            jenisKelamin: userData.jenisKelamin,
+            tempatLahir: userData.tempatLahir,
+            tanggalLahir: new Date(userData.tanggalLahir),
+            alamatDomisili: userData.alamatDomisili,
+            kewarganegaraan: userData.kewarganegaraan,
+            nomorHP: userData.nomorHP,
+            profileImage: profileImageUrl,
+            wilayahId: userData.wilayahId
+          }
+        }
+      },
+      include: {
+        profile: true
+      }
+    });
+
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = user;
+    return userWithoutPassword;
   } catch (error) {
     throw error;
   }
 };
 
 const getAllAdmins = async () => {
-    try {
-      const admins = await prisma.user.findMany({
-        where: {
-          role: 'ADMIN'
-        },
-        select: {
-          id: true,
-          username: true,
-          email: true,
-          profileImage: true,
-          createdAt: true,
-          updatedAt: true,
-          createdBy: true,
-          role: true
-        }
-      });
-      
-      return admins;
-    } catch (error) {
-      throw error;
+  try {
+    const admins = await prisma.user.findMany({
+      where: {
+        role: 'ADMIN'
+      },
+      include: {
+        profile: true
+      }
+    });
+    
+    // Remove passwords from response
+    const adminsWithoutPasswords = admins.map(admin => {
+      const { password, ...adminWithoutPassword } = admin;
+      return adminWithoutPassword;
+    });
+    
+    return adminsWithoutPasswords;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const deleteAdmin = async (adminId, superAdminId) => {
+  try {
+    // Check if requester is SUPERADMIN
+    const superAdmin = await prisma.user.findUnique({
+      where: { id: superAdminId }
+    });
+
+    if (!superAdmin || superAdmin.role !== 'SUPERADMIN') {
+      throw new Error('Hanya SUPERADMIN yang dapat menghapus admin');
     }
-  };
+
+    // Check if admin exists
+    const admin = await prisma.user.findUnique({
+      where: { id: adminId }
+    });
+
+    if (!admin) {
+      throw new Error('Admin tidak ditemukan');
+    }
+
+    if (admin.role === 'SUPERADMIN') {
+      throw new Error('Tidak dapat menghapus SUPERADMIN');
+    }
+
+    // Delete admin (profile will be deleted automatically due to cascade)
+    const deletedAdmin = await prisma.user.delete({
+      where: { id: adminId },
+      include: {
+        profile: true
+      }
+    });
+
+    // Remove password from response
+    const { password: _, ...adminWithoutPassword } = deletedAdmin;
+    return adminWithoutPassword;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const resetAdminPassword = async (adminId, superAdminId) => {
+  try {
+    // Check if requester is SUPERADMIN
+    const superAdmin = await prisma.user.findUnique({
+      where: { id: superAdminId }
+    });
+
+    if (!superAdmin || superAdmin.role !== 'SUPERADMIN') {
+      throw new Error('Hanya SUPERADMIN yang dapat mereset password admin');
+    }
+
+    // Check if admin exists
+    const admin = await prisma.user.findUnique({
+      where: { id: adminId }
+    });
+
+    if (!admin) {
+      throw new Error('Admin tidak ditemukan');
+    }
+
+    // Hash default password
+    const defaultPassword = "admin123";
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    // Update admin password
+    const updatedAdmin = await prisma.user.update({
+      where: { id: adminId },
+      data: { password: hashedPassword }
+    });
+
+    // Remove password from response
+    const { password: _, ...adminWithoutPassword } = updatedAdmin;
+    return adminWithoutPassword;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const changePassword = async (userId, currentPassword, newPassword) => {
+  try {
+    // Find user
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new Error('User tidak ditemukan');
+    }
+
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      throw new Error('Password saat ini tidak valid');
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update user password
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword }
+    });
+
+    // Remove password from response
+    const { password: _, ...userWithoutPassword } = updatedUser;
+    return userWithoutPassword;
+  } catch (error) {
+    throw error;
+  }
+};
 
 module.exports = {
   register,
   login,
   createAdmin,
-  getAllAdmins
+  getAllAdmins,
+  deleteAdmin,
+  resetAdminPassword,
+  changePassword
 };

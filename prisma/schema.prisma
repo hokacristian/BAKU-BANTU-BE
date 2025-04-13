@@ -1,9 +1,10 @@
+// Updated schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql" // Anda bisa ganti sesuai database yang digunakan
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -13,32 +14,102 @@ enum UserRole {
 }
 
 model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  profile    Profile?
+  daftarPantis DaftarPanti[]
+  wilayahs    Wilayah[]
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum VolunteerStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+model Profile {
+  id              String   @id @default(uuid())
+  namaLengkap     String
+  jenisKelamin    Gender
+  tempatLahir     String
+  tanggalLahir    DateTime
+  alamatDomisili  String
+  kewarganegaraan String
+  nomorHP         String
+  profileImage    String?
+  wilayahId       String?
+  
+  // Relation to User
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String   @unique
+  
+  // Relation to Wilayah
+  wilayah         Wilayah? @relation(fields: [wilayahId], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Volunteer {
+  id              String          @id @default(uuid())
+  namaLengkap     String
+  jenisKelamin    Gender
+  tempatLahir     String
+  tanggalLahir    DateTime
+  alamatDomisili  String
+  kewarganegaraan String
+  nomorHP         String
+  email           String          @unique
+  wilayahId       String?
+  status          VolunteerStatus @default(PENDING)
+  
+  // Relation to Wilayah
+  wilayah         Wilayah?        @relation(fields: [wilayahId], references: [id])
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model Wilayah {
   id          String    @id @default(uuid())
-  username    String    @unique
-  email       String    @unique
-  password    String
-  profileImage String?   // URL gambar dari ImageKit
-  role        UserRole
+  nama        String    @unique
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  createdBy   String?   // ID user yang membuat (untuk ADMIN yang dibuat oleh SUPERADMIN)
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdById String
   
-  // Relasi dengan DaftarPanti
+  // Relations
   daftarPantis DaftarPanti[]
+  profiles     Profile[]
+  volunteers   Volunteer[]
 }
 
 model DaftarPanti {
   id          String     @id @default(uuid())
   judul       String
   subjudul    String?
-  gambarUrl   String?    // URL gambar dari ImageKit
+  gambarUrl   String?
   konten      String     @db.Text
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   penulis     User       @relation(fields: [penulisId], references: [id])
   penulisId   String
   
-  // Relasi dengan DetailPanti
+  // Relations
+  wilayah     Wilayah?   @relation(fields: [wilayahId], references: [id])
+  wilayahId   String?
+  
   detailPantis DetailPanti[]
 }
 
@@ -51,13 +122,12 @@ model DetailPanti {
   jumlahPengasuh      Int
   jumlahPenghuni      Int
   karakteristikPenghuni String?
-  jenisSumbangan      String?
+  jenisSumbangan      Json?
   kebutuhanBantuan    String?
-  nomorKontak         String?
+  nomorKontak         Json?
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
   
-  // Relasi dengan DaftarPanti
   daftarPanti         DaftarPanti @relation(fields: [daftarPantiId], references: [id])
   daftarPantiId       String
 }
