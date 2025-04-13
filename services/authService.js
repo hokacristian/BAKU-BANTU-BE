@@ -3,7 +3,7 @@ const prisma = require('../configs/prisma');
 const { generateToken } = require('../configs/jwt');
 const imagekit = require('../configs/imagekit');
 
-const register = async (email, password, role = 'ADMIN' = null) => {
+const register = async (email, password, role = 'ADMIN', createdBy = null) => {
   try {
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({

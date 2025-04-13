@@ -24,7 +24,6 @@ model User {
   // Relations
   profile    Profile?
   daftarPantis DaftarPanti[]
-  wilayahs    Wilayah[]
 }
 
 enum Gender {
@@ -40,13 +39,13 @@ enum VolunteerStatus {
 
 model Profile {
   id              String   @id @default(uuid())
-  namaLengkap     String
+  namaLengkap     String?
   jenisKelamin    Gender
-  tempatLahir     String
-  tanggalLahir    DateTime
-  alamatDomisili  String
-  kewarganegaraan String
-  nomorHP         String
+  tempatLahir     String?
+  tanggalLahir    DateTime?
+  alamatDomisili  String?
+  kewarganegaraan String?
+  nomorHP         String?
   profileImage    String?
   wilayahId       String?
   
@@ -86,13 +85,12 @@ model Wilayah {
   nama        String    @unique
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  createdBy   User      @relation(fields: [createdById], references: [id])
-  createdById String
   
   // Relations
   daftarPantis DaftarPanti[]
   profiles     Profile[]
   volunteers   Volunteer[]
+
 }
 
 model DaftarPanti {

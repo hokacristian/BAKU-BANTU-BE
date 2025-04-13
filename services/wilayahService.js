@@ -26,25 +26,49 @@ const createWilayah = async (nama, userId) => {
   }
 };
 
-// Fungsi untuk mendapatkan semua wilayah
+// Updated getAllWilayah function
 const getAllWilayah = async () => {
   try {
+    // Get all wilayah records
     const wilayahs = await prisma.wilayah.findMany({
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            username: true,
-            email: true
-          }
-        }
-      },
       orderBy: {
         nama: 'asc'
       }
     });
-
-    return wilayahs;
+    
+    // For each wilayah, get volunteer count and names
+    const wilayahsWithCounts = await Promise.all(wilayahs.map(async (wilayah) => {
+      // Count volunteers in this wilayah
+      const volunteersCount = await prisma.volunteer.count({
+        where: {
+          wilayahId: wilayah.id
+        }
+      });
+      
+      // Get volunteer names in this wilayah
+      const volunteers = await prisma.volunteer.findMany({
+        where: {
+          wilayahId: wilayah.id
+        },
+        select: {
+          id: true,
+          namaLengkap: true,
+          email: true,
+          status: true
+        }
+      });
+      
+      // Return wilayah with volunteer data
+      // totalCount is now just the volunteersCount
+      return {
+        ...wilayah,
+        volunteersCount,
+        totalCount: volunteersCount,
+        volunteers
+      };
+    }));
+    
+    return wilayahsWithCounts;
   } catch (error) {
     throw error;
   }

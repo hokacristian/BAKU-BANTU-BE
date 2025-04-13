@@ -1,4 +1,5 @@
 const authService = require('../services/authService');
+const prisma = require('../configs/prisma'); 
 
 const registerSuperAdmin = async (req, res) => {
   try {
