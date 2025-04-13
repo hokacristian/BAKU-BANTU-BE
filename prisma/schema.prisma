@@ -1,4 +1,3 @@
-// Updated schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,17 +12,9 @@ enum UserRole {
   ADMIN
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  role      UserRole
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  // Relations
-  profile    Profile?
-  daftarPantis DaftarPanti[]
+enum UserStatus {
+  ACTIVE
+  INACTIVE
 }
 
 enum Gender {
@@ -37,27 +28,18 @@ enum VolunteerStatus {
   INACTIVE
 }
 
-model Profile {
-  id              String   @id @default(uuid())
-  namaLengkap     String?
-  jenisKelamin    Gender
-  tempatLahir     String?
-  tanggalLahir    DateTime?
-  alamatDomisili  String?
-  kewarganegaraan String?
-  nomorHP         String?
-  profileImage    String?
-  wilayahId       String?
-  
-  // Relation to User
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId          String   @unique
-  
-  // Relation to Wilayah
-  wilayah         Wilayah? @relation(fields: [wilayahId], references: [id])
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+model User {
+  id       String     @id @default(uuid())
+  email    String     @unique
+  password String
+  role     UserRole
+  status   UserStatus @default(ACTIVE)
+
+  // Relations
+  daftarPantis DaftarPanti[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Volunteer {
@@ -71,61 +53,60 @@ model Volunteer {
   nomorHP         String
   email           String          @unique
   wilayahId       String?
+  profileImage    String?
   status          VolunteerStatus @default(PENDING)
-  
+
   // Relation to Wilayah
-  wilayah         Wilayah?        @relation(fields: [wilayahId], references: [id])
-  
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  wilayah Wilayah? @relation(fields: [wilayahId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Wilayah {
-  id          String    @id @default(uuid())
-  nama        String    @unique
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
+  id        String   @id @default(uuid())
+  nama      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
   daftarPantis DaftarPanti[]
-  profiles     Profile[]
   volunteers   Volunteer[]
-
 }
 
 model DaftarPanti {
-  id          String     @id @default(uuid())
-  judul       String
-  subjudul    String?
-  gambarUrl   String?
-  konten      String     @db.Text
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  penulis     User       @relation(fields: [penulisId], references: [id])
-  penulisId   String
-  
+  id        String   @id @default(uuid())
+  judul     String
+  subjudul  String?
+  gambarUrl String?
+  konten    String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  penulis   User     @relation(fields: [penulisId], references: [id])
+  penulisId String
+
   // Relations
-  wilayah     Wilayah?   @relation(fields: [wilayahId], references: [id])
-  wilayahId   String?
-  
+  wilayah   Wilayah? @relation(fields: [wilayahId], references: [id])
+  wilayahId String?
+
   detailPantis DetailPanti[]
 }
 
 model DetailPanti {
-  id                  String     @id @default(uuid())
-  namaPanti           String
-  yayasanPenaung      String
-  fokusPelayanPanti   String
-  alamatPanti         String
-  jumlahPengasuh      Int
-  jumlahPenghuni      Int
+  id                    String   @id @default(uuid())
+  namaPanti             String
+  yayasanPenaung        String
+  fokusPelayanPanti     String
+  alamatPanti           String
+  jumlahPengasuh        Int
+  jumlahPenghuni        Int
   karakteristikPenghuni String?
-  jenisSumbangan      Json?
-  kebutuhanBantuan    String?
-  nomorKontak         Json?
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
-  
-  daftarPanti         DaftarPanti @relation(fields: [daftarPantiId], references: [id])
-  daftarPantiId       String
+  jenisSumbangan        Json?
+  kebutuhanBantuan      String?
+  nomorKontak           Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  daftarPanti   DaftarPanti @relation(fields: [daftarPantiId], references: [id])
+  daftarPantiId String
 }

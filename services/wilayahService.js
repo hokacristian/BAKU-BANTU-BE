@@ -16,7 +16,6 @@ const createWilayah = async (nama, userId) => {
     const wilayah = await prisma.wilayah.create({
       data: {
         nama,
-        createdById: userId
       }
     });
 

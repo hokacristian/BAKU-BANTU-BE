@@ -3,33 +3,78 @@ const prisma = require('../configs/prisma');
 const { generateToken } = require('../configs/jwt');
 const imagekit = require('../configs/imagekit');
 
-const register = async (email, password, role = 'ADMIN', createdBy = null) => {
+const register = async (email, password, role = 'ADMIN', userData = {}) => {
   try {
-    // Check if email already exists
+    // Debugging log
+    console.log("Registering user with data:", { email, role });
+    console.log("User profile data:", userData);
+
+    // Check if email already exists in users or volunteers
     const existingUser = await prisma.user.findUnique({
       where: { email }
     });
 
-    if (existingUser) {
+    const existingVolunteer = await prisma.volunteer.findUnique({
+      where: { email }
+    });
+
+    if (existingUser || existingVolunteer) {
       throw new Error('Email already exists');
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // Create user
+    // Create user with basic authentication fields
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
-        role
+        role,
+        status: 'ACTIVE'
       }
     });
+
+    console.log("User created:", user.id);
+
+    // Create volunteer entry with profile data
+    if (userData.namaLengkap && userData.jenisKelamin) {
+      console.log("Creating volunteer record for user");
+      try {
+        const volunteer = await prisma.volunteer.create({
+          data: {
+            namaLengkap: userData.namaLengkap,
+            jenisKelamin: userData.jenisKelamin,
+            tempatLahir: userData.tempatLahir || '',
+            tanggalLahir: userData.tanggalLahir || new Date(),
+            alamatDomisili: userData.alamatDomisili || '',
+            kewarganegaraan: userData.kewarganegaraan || 'Indonesia',
+            nomorHP: userData.nomorHP || '',
+            email: email,
+            wilayahId: userData.wilayahId,
+            status: 'ACTIVE'
+          }
+        });
+        console.log("Volunteer record created:", volunteer.id);
+      } catch (volunteerError) {
+        console.error("Error creating volunteer record:", volunteerError);
+        
+        // If volunteer creation fails, delete the user to maintain data consistency
+        await prisma.user.delete({
+          where: { id: user.id }
+        });
+        
+        throw volunteerError;
+      }
+    } else {
+      console.log("Skipping volunteer creation - missing required fields");
+    }
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
     return userWithoutPassword;
   } catch (error) {
+    console.error("Registration error:", error);
     throw error;
   }
 };
@@ -45,11 +90,18 @@ const login = async (email, password) => {
       throw new Error('Invalid credentials');
     }
 
+    // Check if user is active
+    if (user.status === 'INACTIVE') {
+      throw new Error('Account is inactive');
+    }
+
     // Check password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       throw new Error('Invalid credentials');
     }
+
+
 
     // Generate JWT token
     const token = generateToken({ 
@@ -61,8 +113,10 @@ const login = async (email, password) => {
     const userResponse = {
       id: user.id,
       email: user.email,
-      role: user.role
+      role: user.role,
+      status: user.status
     };
+      
     
     return {
       user: userResponse,
@@ -89,13 +143,17 @@ const createAdmin = async (userData, creatorId) => {
       where: { email: userData.email }
     });
 
-    if (existingUser) {
+    const existingVolunteer = await prisma.volunteer.findUnique({
+      where: { email: userData.email }
+    });
+
+    if (existingUser || existingVolunteer) {
       throw new Error('Email already exists');
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(userData.password, 10);
-    
+
     // Upload profile image if provided
     let profileImageUrl = null;
     if (userData.profileImage) {
@@ -115,34 +173,43 @@ const createAdmin = async (userData, creatorId) => {
       }
     }
 
-    // Create user with profile
+    // Create user with only basic auth fields
     const user = await prisma.user.create({
       data: {
         email: userData.email,
         password: hashedPassword,
         role: 'ADMIN',
-        profile: {
-          create: {
-            namaLengkap: userData.namaLengkap,
-            jenisKelamin: userData.jenisKelamin,
-            tempatLahir: userData.tempatLahir,
-            tanggalLahir: new Date(userData.tanggalLahir),
-            alamatDomisili: userData.alamatDomisili,
-            kewarganegaraan: userData.kewarganegaraan,
-            nomorHP: userData.nomorHP,
-            profileImage: profileImageUrl,
-            wilayahId: userData.wilayahId
-          }
-        }
+        status: 'ACTIVE'
+      }
+    });
+
+    // Create volunteer entry for the admin with all profile data
+    const volunteer = await prisma.volunteer.create({
+      data: {
+        namaLengkap: userData.namaLengkap,
+        jenisKelamin: userData.jenisKelamin,
+        tempatLahir: userData.tempatLahir,
+        tanggalLahir: new Date(userData.tanggalLahir),
+        alamatDomisili: userData.alamatDomisili,
+        kewarganegaraan: userData.kewarganegaraan,
+        nomorHP: userData.nomorHP,
+        email: userData.email,
+        wilayahId: userData.wilayahId,
+        status: 'ACTIVE'
       },
       include: {
-        profile: true
+        wilayah: true
       }
     });
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    
+    // Combine user and volunteer data for response
+    return {
+      ...userWithoutPassword,
+      volunteerInfo: volunteer
+    };
   } catch (error) {
     throw error;
   }
@@ -150,22 +217,41 @@ const createAdmin = async (userData, creatorId) => {
 
 const getAllAdmins = async () => {
   try {
+    // Get all admin users
     const admins = await prisma.user.findMany({
       where: {
         role: 'ADMIN'
-      },
-      include: {
-        profile: true
       }
     });
     
-    // Remove passwords from response
-    const adminsWithoutPasswords = admins.map(admin => {
-      const { password, ...adminWithoutPassword } = admin;
-      return adminWithoutPassword;
-    });
+    // Get corresponding volunteer data for each admin
+    const adminsWithVolunteerInfo = await Promise.all(
+      admins.map(async (admin) => {
+        // Remove password from admin data
+        const { password, ...adminWithoutPassword } = admin;
+        
+        // Get volunteer data for this admin
+        const volunteer = await prisma.volunteer.findUnique({
+          where: { email: admin.email },
+          include: {
+            wilayah: {
+              select: {
+                id: true,
+                nama: true
+              }
+            }
+          }
+        });
+        
+        // Return admin with volunteer info
+        return {
+          ...adminWithoutPassword,
+          volunteerInfo: volunteer || null
+        };
+      })
+    );
     
-    return adminsWithoutPasswords;
+    return adminsWithVolunteerInfo;
   } catch (error) {
     throw error;
   }
@@ -195,16 +281,26 @@ const deleteAdmin = async (adminId, superAdminId) => {
       throw new Error('Tidak dapat menghapus SUPERADMIN');
     }
 
-    // Delete admin (profile will be deleted automatically due to cascade)
-    const deletedAdmin = await prisma.user.delete({
+    // Update admin status to INACTIVE instead of deleting
+    const updatedAdmin = await prisma.user.update({
       where: { id: adminId },
-      include: {
-        profile: true
-      }
+      data: { status: 'INACTIVE' }
     });
 
+    // Also update corresponding volunteer status
+    const volunteer = await prisma.volunteer.findUnique({
+      where: { email: admin.email }
+    });
+
+    if (volunteer) {
+      await prisma.volunteer.update({
+        where: { id: volunteer.id },
+        data: { status: 'INACTIVE' }
+      });
+    }
+
     // Remove password from response
-    const { password: _, ...adminWithoutPassword } = deletedAdmin;
+    const { password: _, ...adminWithoutPassword } = updatedAdmin;
     return adminWithoutPassword;
   } catch (error) {
     throw error;
@@ -283,6 +379,56 @@ const changePassword = async (userId, currentPassword, newPassword) => {
   }
 };
 
+const reactivateAdmin = async (adminId, superAdminId) => {
+  try {
+    // Check if requester is SUPERADMIN
+    const superAdmin = await prisma.user.findUnique({
+      where: { id: superAdminId }
+    });
+
+    if (!superAdmin || superAdmin.role !== 'SUPERADMIN') {
+      throw new Error('Hanya SUPERADMIN yang dapat mengaktifkan kembali admin');
+    }
+
+    // Check if admin exists
+    const admin = await prisma.user.findUnique({
+      where: { id: adminId }
+    });
+
+    if (!admin) {
+      throw new Error('Admin tidak ditemukan');
+    }
+
+    if (admin.status === 'ACTIVE') {
+      throw new Error('Admin sudah aktif');
+    }
+
+    // Update admin status to ACTIVE
+    const updatedAdmin = await prisma.user.update({
+      where: { id: adminId },
+      data: { status: 'ACTIVE' }
+    });
+
+    // Also update corresponding volunteer status
+    const volunteer = await prisma.volunteer.findUnique({
+      where: { email: admin.email }
+    });
+
+    if (volunteer) {
+      await prisma.volunteer.update({
+        where: { id: volunteer.id },
+        data: { status: 'ACTIVE' }
+      });
+    }
+
+    // Remove password from response
+    const { password: _, ...adminWithoutPassword } = updatedAdmin;
+    return adminWithoutPassword;
+  } catch (error) {
+    throw error;
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -290,5 +436,6 @@ module.exports = {
   getAllAdmins,
   deleteAdmin,
   resetAdminPassword,
-  changePassword
+  changePassword,
+  reactivateAdmin
 };

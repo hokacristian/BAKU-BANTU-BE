@@ -11,25 +11,78 @@ async function main() {
   // Check if superadmin already exists
   const existingSuperAdmin = await prisma.user.findFirst({
     where: { 
-      email: 'superadmin@example.com',
+      email: 'hoka1@gmail.com',
       role: 'SUPERADMIN'
     }
   });
 
   let superadmin;
   if (!existingSuperAdmin) {
-    console.log('Creating SUPERADMIN...');
+    console.log('Creating SUPERADMIN user...');
     superadmin = await prisma.user.create({
       data: {
         email: 'hoka1@gmail.com',
         password: hashedPassword,
         role: 'SUPERADMIN',
+        status: 'ACTIVE'
       },
     });
-    console.log('SUPERADMIN created:', superadmin.id);
+    console.log('SUPERADMIN user created:', superadmin.id);
+    
+    // Check if volunteer record exists for this superadmin
+    const existingVolunteer = await prisma.volunteer.findUnique({
+      where: { email: 'hoka1@gmail.com' }
+    });
+    
+    if (!existingVolunteer) {
+      console.log('Creating SUPERADMIN volunteer record...');
+      // Create corresponding volunteer record
+      const superadminVolunteer = await prisma.volunteer.create({
+        data: {
+          namaLengkap: 'Super Admin',
+          jenisKelamin: 'MALE',
+          tempatLahir: 'Jakarta',
+          tanggalLahir: new Date('1990-01-01'),
+          alamatDomisili: 'Jakarta',
+          kewarganegaraan: 'Indonesia',
+          nomorHP: '08123456789',
+          email: 'hoka1@gmail.com',
+          status: 'ACTIVE'
+        }
+      });
+      console.log('SUPERADMIN volunteer record created:', superadminVolunteer.id);
+    } else {
+      console.log('SUPERADMIN volunteer record already exists');
+    }
   } else {
     superadmin = existingSuperAdmin;
-    console.log('SUPERADMIN already exists, using existing one:', superadmin.id);
+    console.log('SUPERADMIN user already exists, using existing one:', superadmin.id);
+    
+    // Check if volunteer record exists for this superadmin
+    const existingVolunteer = await prisma.volunteer.findUnique({
+      where: { email: 'hoka1@gmail.com' }
+    });
+    
+    if (!existingVolunteer) {
+      console.log('Creating SUPERADMIN volunteer record...');
+      // Create corresponding volunteer record
+      const superadminVolunteer = await prisma.volunteer.create({
+        data: {
+          namaLengkap: 'Super Admin',
+          jenisKelamin: 'MALE',
+          tempatLahir: 'Jakarta',
+          tanggalLahir: new Date('1990-01-01'),
+          alamatDomisili: 'Jakarta',
+          kewarganegaraan: 'Indonesia',
+          nomorHP: '08123456789',
+          email: 'hoka1@gmail.com',
+          status: 'ACTIVE',
+        }
+      });
+      console.log('SUPERADMIN volunteer record created:', superadminVolunteer.id);
+    } else {
+      console.log('SUPERADMIN volunteer record already exists');
+    }
   }
 
   // Create wilayah data
@@ -45,7 +98,6 @@ async function main() {
     { nama: 'Bekasi' },
     { nama: 'Bandung' },
     { nama: 'Manado' },
-
   ];
 
   console.log('Creating wilayah records...');
@@ -60,7 +112,6 @@ async function main() {
       await prisma.wilayah.create({
         data: {
           nama: wilayah.nama,
-          createdById: superadmin.id,
         },
       });
       console.log(`Wilayah created: ${wilayah.nama}`);
