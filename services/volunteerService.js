@@ -150,6 +150,30 @@ const updateVolunteerStatus = async (volunteerId, newStatus) => {
       }
     });
     
+    // Check if there's a corresponding user account and update its status accordingly
+    const existingUser = await prisma.user.findUnique({
+      where: { email: volunteer.email }
+    });
+    
+    if (existingUser) {
+      // If setting volunteer to INACTIVE, also set user to INACTIVE
+      if (newStatus === 'INACTIVE') {
+        await prisma.user.update({
+          where: { id: existingUser.id },
+          data: { status: 'INACTIVE' }
+        });
+        console.log(`User account for ${volunteer.email} set to INACTIVE`);
+      } 
+      // If setting volunteer to ACTIVE and user is currently INACTIVE, reactivate user
+      else if (newStatus === 'ACTIVE' && existingUser.status === 'INACTIVE') {
+        await prisma.user.update({
+          where: { id: existingUser.id },
+          data: { status: 'ACTIVE' }
+        });
+        console.log(`User account for ${volunteer.email} set to ACTIVE`);
+      }
+    }
+    
     // Send email based on status change
     try {
       // If status changed from PENDING to ACTIVE, send activation email
