@@ -39,6 +39,20 @@ const getAllVolunteers = async (req, res) => {
   }
 };
 
+// Controller untuk mendapatkan hanya relawan aktif
+const getActiveVolunteers = async (req, res) => {
+  try {
+    const activeVolunteers = await volunteerService.getActiveVolunteers();
+    
+    res.status(200).json({
+      message: 'Data relawan aktif berhasil diambil',
+      data: activeVolunteers
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Controller untuk mendapatkan detail relawan berdasarkan ID
 const getVolunteerById = async (req, res) => {
   try {
@@ -70,9 +84,9 @@ const updateVolunteerStatus = async (req, res) => {
     
     let message = 'Status relawan berhasil diperbarui';
     if (status === 'ACTIVE') {
-      message = 'Relawan berhasil diaktifkan dan akun admin telah dibuat';
+      message = 'Relawan berhasil diaktifkan';
     } else if (status === 'INACTIVE') {
-      message = 'Relawan berhasil dihapus';
+      message = 'Relawan berhasil dinonaktifkan';
     }
     
     res.status(200).json({
@@ -84,9 +98,28 @@ const updateVolunteerStatus = async (req, res) => {
   }
 };
 
+// Controller baru untuk membuat admin dari relawan
+const createAdminFromVolunteer = async (req, res) => {
+  try {
+    const { volunteerId } = req.params;
+    const superAdminId = req.user.id;
+    
+    const result = await volunteerService.createAdminFromVolunteer(volunteerId, superAdminId);
+    
+    res.status(201).json({
+      message: 'Relawan berhasil dijadikan admin',
+      data: result
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 module.exports = {
   registerVolunteer,
   getAllVolunteers,
+  getActiveVolunteers,
   getVolunteerById,
-  updateVolunteerStatus
+  updateVolunteerStatus,
+  createAdminFromVolunteer
 };

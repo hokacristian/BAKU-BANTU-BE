@@ -62,6 +62,32 @@ const getAllVolunteers = async () => {
   }
 };
 
+// Fungsi untuk mendapatkan relawan dengan status ACTIVE saja
+const getActiveVolunteers = async () => {
+  try {
+    const activeVolunteers = await prisma.volunteer.findMany({
+      where: {
+        status: 'ACTIVE'
+      },
+      include: {
+        wilayah: {
+          select: {
+            id: true,
+            nama: true
+          }
+        }
+      },
+      orderBy: {
+        namaLengkap: 'asc'
+      }
+    });
+
+    return activeVolunteers;
+  } catch (error) {
+    throw error;
+  }
+};
+
 // Fungsi untuk mendapatkan detail relawan berdasarkan ID
 const getVolunteerById = async (volunteerId) => {
   try {
@@ -97,47 +123,6 @@ const updateVolunteerStatus = async (volunteerId, newStatus) => {
     if (!volunteer) {
       throw new Error('Relawan tidak ditemukan');
     }
-
-    // Jika status diubah menjadi ACTIVE, buat user admin jika belum ada
-    if (newStatus === 'ACTIVE') {
-      // Cek apakah sudah ada user dengan email tersebut
-      const existingUser = await prisma.user.findUnique({
-        where: { email: volunteer.email }
-      });
-      
-      if (!existingUser) {
-        // Create new admin user with default password
-        const defaultPassword = "admin123";
-        const hashedPassword = await bcrypt.hash(defaultPassword, 10);
-        
-        await prisma.user.create({
-          data: {
-            email: volunteer.email,
-            password: hashedPassword,
-            role: 'ADMIN',
-            status: 'ACTIVE'
-          }
-        });
-      } else if (existingUser.status === 'INACTIVE') {
-        // If user exists but is inactive, reactivate it
-        await prisma.user.update({
-          where: { id: existingUser.id },
-          data: { status: 'ACTIVE' }
-        });
-      }
-    } else if (newStatus === 'INACTIVE') {
-      // If status is changed to INACTIVE, make the user inactive too
-      const existingUser = await prisma.user.findUnique({
-        where: { email: volunteer.email }
-      });
-      
-      if (existingUser && existingUser.status === 'ACTIVE') {
-        await prisma.user.update({
-          where: { id: existingUser.id },
-          data: { status: 'INACTIVE' }
-        });
-      }
-    }
     
     // Update volunteer status (don't delete even if inactive)
     const updatedVolunteer = await prisma.volunteer.update({
@@ -159,9 +144,76 @@ const updateVolunteerStatus = async (volunteerId, newStatus) => {
   }
 };
 
+// Fungsi baru untuk membuat admin dari volunteer
+const createAdminFromVolunteer = async (volunteerId, superAdminId) => {
+  try {
+    // Cek apakah requester adalah SUPERADMIN
+    const superAdmin = await prisma.user.findUnique({
+      where: { id: superAdminId }
+    });
+
+    if (!superAdmin || superAdmin.role !== 'SUPERADMIN') {
+      throw new Error('Hanya SUPERADMIN yang dapat membuat admin dari relawan');
+    }
+
+    // Cek apakah volunteer ada dan statusnya ACTIVE
+    const volunteer = await prisma.volunteer.findUnique({
+      where: { id: volunteerId },
+      include: {
+        wilayah: true
+      }
+    });
+
+    if (!volunteer) {
+      throw new Error('Relawan tidak ditemukan');
+    }
+
+    if (volunteer.status !== 'ACTIVE') {
+      throw new Error('Hanya relawan dengan status ACTIVE yang dapat dijadikan admin');
+    }
+
+    // Cek apakah sudah ada user dengan email tersebut
+    const existingUser = await prisma.user.findUnique({
+      where: { email: volunteer.email }
+    });
+
+    if (existingUser) {
+      throw new Error('Relawan ini sudah terdaftar sebagai user');
+    }
+
+    // Create new admin user with default password
+    const defaultPassword = "admin123";
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+    
+    const newAdmin = await prisma.user.create({
+      data: {
+        email: volunteer.email,
+        password: hashedPassword,
+        role: 'ADMIN',
+        status: 'ACTIVE'
+      }
+    });
+
+    // Return volunteer info with new admin
+    return {
+      admin: {
+        id: newAdmin.id,
+        email: newAdmin.email,
+        role: newAdmin.role,
+        status: newAdmin.status
+      },
+      volunteer: volunteer
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
 module.exports = {
   registerVolunteer,
   getAllVolunteers,
+  getActiveVolunteers,
   getVolunteerById,
-  updateVolunteerStatus
+  updateVolunteerStatus,
+  createAdminFromVolunteer
 };
