@@ -1,5 +1,6 @@
 const prisma = require('../configs/prisma');
 const bcrypt = require('bcryptjs');
+const emailService = require('../services/emailService');
 
 // Fungsi untuk mendaftarkan relawan baru
 const registerVolunteer = async (volunteerData) => {
@@ -117,14 +118,25 @@ const getVolunteerById = async (volunteerId) => {
 const updateVolunteerStatus = async (volunteerId, newStatus) => {
   try {
     const volunteer = await prisma.volunteer.findUnique({
-      where: { id: volunteerId }
+      where: { id: volunteerId },
+      include: {
+        wilayah: {
+          select: {
+            id: true,
+            nama: true
+          }
+        }
+      }
     });
 
     if (!volunteer) {
       throw new Error('Relawan tidak ditemukan');
     }
     
-    // Update volunteer status (don't delete even if inactive)
+    // Get the current status before updating
+    const previousStatus = volunteer.status;
+    
+    // Update volunteer status
     const updatedVolunteer = await prisma.volunteer.update({
       where: { id: volunteerId },
       data: { status: newStatus },
@@ -137,6 +149,25 @@ const updateVolunteerStatus = async (volunteerId, newStatus) => {
         }
       }
     });
+    
+    // Send email based on status change
+    try {
+      // If status changed from PENDING to ACTIVE, send activation email
+      if (previousStatus === 'PENDING' && newStatus === 'ACTIVE') {
+        await emailService.sendActivationEmail(updatedVolunteer);
+        console.log(`Activation email sent to ${updatedVolunteer.email}`);
+      }
+      
+      // If status changed to INACTIVE, send deactivation email
+      if (newStatus === 'INACTIVE' && previousStatus !== 'INACTIVE') {
+        await emailService.sendDeactivationEmail(updatedVolunteer);
+        console.log(`Deactivation email sent to ${updatedVolunteer.email}`);
+      }
+    } catch (emailError) {
+      // Log email error but don't fail the function
+      console.error('Error sending status change email:', emailError);
+      // We continue with the function since the volunteer status has been updated
+    }
 
     return updatedVolunteer;
   } catch (error) {
@@ -144,7 +175,7 @@ const updateVolunteerStatus = async (volunteerId, newStatus) => {
   }
 };
 
-// Fungsi baru untuk membuat admin dari volunteer
+// Fungsi untuk membuat admin dari volunteer
 const createAdminFromVolunteer = async (volunteerId, superAdminId) => {
   try {
     // Cek apakah requester adalah SUPERADMIN
@@ -193,6 +224,16 @@ const createAdminFromVolunteer = async (volunteerId, superAdminId) => {
         status: 'ACTIVE'
       }
     });
+    
+    // Send admin creation email
+    try {
+      await emailService.sendAdminCreationEmail(volunteer, defaultPassword);
+      console.log(`Admin creation email sent to ${volunteer.email}`);
+    } catch (emailError) {
+      // Log email error but don't fail the function
+      console.error('Error sending admin creation email:', emailError);
+      // We continue with the function since the admin has been created
+    }
 
     // Return volunteer info with new admin
     return {
