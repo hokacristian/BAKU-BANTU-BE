@@ -1,9 +1,11 @@
 const prisma = require('../configs/prisma');
 const bcrypt = require('bcryptjs');
 const emailService = require('../services/emailService');
+const imagekit = require('../configs/imagekit'); // Add this import for ImageKit
+
 
 // Fungsi untuk mendaftarkan relawan baru
-const registerVolunteer = async (volunteerData) => {
+const registerVolunteer = async (volunteerData, profileImage = null) => {
   try {
     // Check if email already exists in volunteers or users
     const existingVolunteer = await prisma.volunteer.findUnique({
@@ -18,6 +20,25 @@ const registerVolunteer = async (volunteerData) => {
       throw new Error('Email sudah terdaftar');
     }
 
+    // Upload profile image if provided
+    let profileImageUrl = null;
+    if (profileImage) {
+      try {
+        const fileContent = profileImage.buffer.toString('base64');
+        
+        const uploadResponse = await imagekit.upload({
+          file: fileContent,
+          fileName: `volunteer-${Date.now()}`,
+          folder: '/volunteer-profiles'
+        });
+        
+        profileImageUrl = uploadResponse.url;
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        throw new Error('Failed to upload profile image');
+      }
+    }
+
     // Create new volunteer with PENDING status
     const volunteer = await prisma.volunteer.create({
       data: {
@@ -30,6 +51,7 @@ const registerVolunteer = async (volunteerData) => {
         nomorHP: volunteerData.nomorHP,
         email: volunteerData.email,
         wilayahId: volunteerData.wilayahId,
+        profileImage: profileImageUrl, // Add the photo URL
         status: 'PENDING'
       }
     });

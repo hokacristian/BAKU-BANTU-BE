@@ -4,6 +4,7 @@ const volunteerService = require('../services/volunteerService');
 const registerVolunteer = async (req, res) => {
   try {
     const volunteerData = req.body;
+    const profileImage = req.file;
     
     if (!volunteerData.namaLengkap || !volunteerData.jenisKelamin || 
         !volunteerData.tempatLahir || !volunteerData.tanggalLahir || 
@@ -14,7 +15,8 @@ const registerVolunteer = async (req, res) => {
       });
     }
     
-    const volunteer = await volunteerService.registerVolunteer(volunteerData);
+    // Pass the file to the service if it exists
+    const volunteer = await volunteerService.registerVolunteer(volunteerData, profileImage);
     
     res.status(201).json({
       message: 'Pendaftaran relawan berhasil',
