@@ -4,8 +4,10 @@ const wilayahController = require('../controllers/wilayahController');
 const { authenticate, authorizeAdmin, authorizeSuperAdmin } = require('../middlewares/authMiddleware');
 
 // Routes untuk wilayah
+
 router.post('/', authenticate, authorizeSuperAdmin, wilayahController.createWilayah);
 router.get('/', authenticate, authorizeAdmin, wilayahController.getAllWilayah);
+router.get('/active', wilayahController.getActiveWilayah);
 router.get('/:wilayahId', authenticate, authorizeAdmin, wilayahController.getWilayahById);
 router.delete('/:wilayahId', authenticate, authorizeSuperAdmin, wilayahController.deleteWilayah);
 

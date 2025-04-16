@@ -1,9 +1,9 @@
 const prisma = require('../configs/prisma');
 
-// Fungsi untuk menambahkan wilayah baru
+// Function to add a new region
 const createWilayah = async (nama, userId) => {
   try {
-    // Periksa apakah wilayah dengan nama yang sama sudah ada
+    // Check if a region with the same name already exists
     const existingWilayah = await prisma.wilayah.findUnique({
       where: { nama }
     });
@@ -12,10 +12,11 @@ const createWilayah = async (nama, userId) => {
       throw new Error('Wilayah dengan nama tersebut sudah ada');
     }
 
-    // Buat wilayah baru
+    // Create a new region with ACTIVE status by default
     const wilayah = await prisma.wilayah.create({
       data: {
         nama,
+        status: 'ACTIVE' // Set status to ACTIVE by default
       }
     });
 
@@ -73,7 +74,26 @@ const getAllWilayah = async () => {
   }
 };
 
-// Fungsi untuk mendapatkan wilayah berdasarkan ID
+// Function to get active wilayah without authentication
+const getActiveWilayah = async () => {
+  try {
+    // Get all active wilayah records
+    const wilayahs = await prisma.wilayah.findMany({
+      where: {
+        status: 'ACTIVE'
+      },
+      orderBy: {
+        nama: 'asc'
+      }
+    });
+    
+    return wilayahs;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Function to get a region by ID
 const getWilayahById = async (wilayahId) => {
   try {
     const wilayah = await prisma.wilayah.findUnique({
@@ -100,10 +120,10 @@ const getWilayahById = async (wilayahId) => {
   }
 };
 
-// Fungsi untuk menghapus wilayah
+// Function to delete a region
 const deleteWilayah = async (wilayahId) => {
   try {
-    // Periksa apakah wilayah ada
+    // Check if the region exists
     const wilayah = await prisma.wilayah.findUnique({
       where: { id: wilayahId },
       include: {
@@ -115,12 +135,12 @@ const deleteWilayah = async (wilayahId) => {
       throw new Error('Wilayah tidak ditemukan');
     }
 
-    // Periksa apakah wilayah memiliki daftar panti yang terkait
+    // Check if the region has associated orphanage lists
     if (wilayah.daftarPantis.length > 0) {
       throw new Error('Tidak dapat menghapus wilayah yang memiliki daftar panti terkait');
     }
 
-    // Hapus wilayah
+    // Delete the region
     const deletedWilayah = await prisma.wilayah.delete({
       where: { id: wilayahId }
     });
@@ -131,10 +151,10 @@ const deleteWilayah = async (wilayahId) => {
   }
 };
 
-// Fungsi untuk memperbarui wilayah pada daftar panti
+// Function to update the region of an orphanage list
 const updateDaftarPantiWilayah = async (daftarPantiId, wilayahId) => {
   try {
-    // Periksa apakah daftar panti ada
+    // Check if the orphanage list exists
     const daftarPanti = await prisma.daftarPanti.findUnique({
       where: { id: daftarPantiId }
     });
@@ -143,7 +163,7 @@ const updateDaftarPantiWilayah = async (daftarPantiId, wilayahId) => {
       throw new Error('Daftar panti tidak ditemukan');
     }
 
-    // Periksa apakah wilayah ada (jika wilayahId tidak null)
+    // Check if the region exists (if wilayahId is not null)
     if (wilayahId) {
       const wilayah = await prisma.wilayah.findUnique({
         where: { id: wilayahId }
@@ -154,7 +174,7 @@ const updateDaftarPantiWilayah = async (daftarPantiId, wilayahId) => {
       }
     }
 
-    // Update wilayah pada daftar panti
+    // Update the region of the orphanage list
     const updatedDaftarPanti = await prisma.daftarPanti.update({
       where: { id: daftarPantiId },
       data: { wilayahId }
@@ -166,10 +186,36 @@ const updateDaftarPantiWilayah = async (daftarPantiId, wilayahId) => {
   }
 };
 
+// Function to update wilayah status
+const updateWilayahStatus = async (wilayahId, status) => {
+  try {
+    // Check if the region exists
+    const wilayah = await prisma.wilayah.findUnique({
+      where: { id: wilayahId }
+    });
+
+    if (!wilayah) {
+      throw new Error('Wilayah tidak ditemukan');
+    }
+
+    // Update the status
+    const updatedWilayah = await prisma.wilayah.update({
+      where: { id: wilayahId },
+      data: { status }
+    });
+
+    return updatedWilayah;
+  } catch (error) {
+    throw error;
+  }
+};
+
 module.exports = {
   createWilayah,
   getAllWilayah,
+  getActiveWilayah,
   getWilayahById,
   deleteWilayah,
-  updateDaftarPantiWilayah
+  updateDaftarPantiWilayah,
+  updateWilayahStatus
 };

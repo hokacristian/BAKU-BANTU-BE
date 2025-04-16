@@ -54,6 +54,7 @@ model Volunteer {
   email           String          @unique
   wilayahId       String?
   profileImage    String?
+  jabbatan        String?
   status          VolunteerStatus @default(PENDING)
 
   // Relation to Wilayah
@@ -68,6 +69,7 @@ model Wilayah {
   nama      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  status    String   @default("ACTIVE") // Added status field with default value "ACTIVE"
 
   // Relations
   daftarPantis DaftarPanti[]

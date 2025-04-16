@@ -1,6 +1,6 @@
 const wilayahService = require('../services/wilayahService');
 
-// Controller untuk menambahkan wilayah baru
+// Controller for adding a new region
 const createWilayah = async (req, res) => {
   try {
     const { nama } = req.body;
@@ -21,7 +21,7 @@ const createWilayah = async (req, res) => {
   }
 };
 
-// Controller untuk mendapatkan semua wilayah
+// Controller for getting all regions
 const getAllWilayah = async (req, res) => {
   try {
     const wilayahs = await wilayahService.getAllWilayah();
@@ -35,7 +35,21 @@ const getAllWilayah = async (req, res) => {
   }
 };
 
-// Controller untuk mendapatkan wilayah berdasarkan ID
+// Controller for getting active regions without authentication
+const getActiveWilayah = async (req, res) => {
+  try {
+    const activeWilayah = await wilayahService.getActiveWilayah();
+
+    res.status(200).json({
+      message: 'Active wilayah berhasil diambil',
+      data: activeWilayah
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Controller for getting a region by ID
 const getWilayahById = async (req, res) => {
   try {
     const { wilayahId } = req.params;
@@ -50,7 +64,7 @@ const getWilayahById = async (req, res) => {
   }
 };
 
-// Controller untuk menghapus wilayah
+// Controller for deleting a region
 const deleteWilayah = async (req, res) => {
   try {
     const { wilayahId } = req.params;
@@ -65,7 +79,7 @@ const deleteWilayah = async (req, res) => {
   }
 };
 
-// Controller untuk memperbarui wilayah pada daftar panti
+// Controller for updating the region of an orphanage list
 const updateDaftarPantiWilayah = async (req, res) => {
   try {
     const { daftarPantiId } = req.params;
@@ -82,10 +96,35 @@ const updateDaftarPantiWilayah = async (req, res) => {
   }
 };
 
+// Controller for updating wilayah status
+const updateWilayahStatus = async (req, res) => {
+  try {
+    const { wilayahId } = req.params;
+    const { status } = req.body;
+    
+    if (!status || !['ACTIVE', 'INACTIVE'].includes(status)) {
+      return res.status(400).json({ 
+        message: 'Status tidak valid. Gunakan ACTIVE atau INACTIVE' 
+      });
+    }
+    
+    const updatedWilayah = await wilayahService.updateWilayahStatus(wilayahId, status);
+    
+    res.status(200).json({
+      message: `Wilayah berhasil ${status === 'ACTIVE' ? 'diaktifkan' : 'dinonaktifkan'}`,
+      data: updatedWilayah
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createWilayah,
   getAllWilayah,
+  getActiveWilayah,
   getWilayahById,
   deleteWilayah,
-  updateDaftarPantiWilayah
+  updateDaftarPantiWilayah,
+  updateWilayahStatus
 };
