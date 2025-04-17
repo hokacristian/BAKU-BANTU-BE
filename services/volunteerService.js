@@ -136,9 +136,9 @@ const getVolunteerById = async (volunteerId) => {
   }
 };
 
-// Fungsi untuk mengubah status relawan
-const updateVolunteerStatus = async (volunteerId, newStatus) => {
+const updateVolunteer = async (volunteerId, volunteerData, profileImage = null) => {
   try {
+    // Check if volunteer exists
     const volunteer = await prisma.volunteer.findUnique({
       where: { id: volunteerId },
       include: {
@@ -158,10 +158,48 @@ const updateVolunteerStatus = async (volunteerId, newStatus) => {
     // Get the current status before updating
     const previousStatus = volunteer.status;
     
-    // Update volunteer status
+    // Upload profile image if provided
+    let profileImageUrl = volunteer.profileImage;
+    if (profileImage) {
+      try {
+        const fileContent = profileImage.buffer.toString('base64');
+        
+        const uploadResponse = await imagekit.upload({
+          file: fileContent,
+          fileName: `volunteer-${Date.now()}`,
+          folder: '/volunteer-profiles'
+        });
+        
+        profileImageUrl = uploadResponse.url;
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        throw new Error('Failed to upload profile image');
+      }
+    }
+    
+    // Format date if provided
+    let tanggalLahir = volunteer.tanggalLahir;
+    if (volunteerData.tanggalLahir) {
+      tanggalLahir = new Date(volunteerData.tanggalLahir);
+    }
+    
+    // Update volunteer data
     const updatedVolunteer = await prisma.volunteer.update({
       where: { id: volunteerId },
-      data: { status: newStatus },
+      data: {
+        namaLengkap: volunteerData.namaLengkap || volunteer.namaLengkap,
+        jenisKelamin: volunteerData.jenisKelamin || volunteer.jenisKelamin,
+        tempatLahir: volunteerData.tempatLahir || volunteer.tempatLahir,
+        tanggalLahir: tanggalLahir,
+        alamatDomisili: volunteerData.alamatDomisili || volunteer.alamatDomisili,
+        kewarganegaraan: volunteerData.kewarganegaraan || volunteer.kewarganegaraan,
+        nomorHP: volunteerData.nomorHP || volunteer.nomorHP,
+        email: volunteerData.email || volunteer.email,
+        wilayahId: volunteerData.wilayahId || volunteer.wilayahId,
+        profileImage: profileImageUrl,
+        jabatan: volunteerData.jabatan || volunteer.jabatan,
+        status: volunteerData.status || volunteer.status
+      },
       include: {
         wilayah: {
           select: {
@@ -173,46 +211,48 @@ const updateVolunteerStatus = async (volunteerId, newStatus) => {
     });
     
     // Check if there's a corresponding user account and update its status accordingly
-    const existingUser = await prisma.user.findUnique({
-      where: { email: volunteer.email }
-    });
-    
-    if (existingUser) {
-      // If setting volunteer to INACTIVE, also set user to INACTIVE
-      if (newStatus === 'INACTIVE') {
-        await prisma.user.update({
-          where: { id: existingUser.id },
-          data: { status: 'INACTIVE' }
-        });
-        console.log(`User account for ${volunteer.email} set to INACTIVE`);
-      } 
-      // If setting volunteer to ACTIVE and user is currently INACTIVE, reactivate user
-      else if (newStatus === 'ACTIVE' && existingUser.status === 'INACTIVE') {
-        await prisma.user.update({
-          where: { id: existingUser.id },
-          data: { status: 'ACTIVE' }
-        });
-        console.log(`User account for ${volunteer.email} set to ACTIVE`);
-      }
-    }
-    
-    // Send email based on status change
-    try {
-      // If status changed from PENDING to ACTIVE, send activation email
-      if (previousStatus === 'PENDING' && newStatus === 'ACTIVE') {
-        await emailService.sendActivationEmail(updatedVolunteer);
-        console.log(`Activation email sent to ${updatedVolunteer.email}`);
+    if (volunteerData.status && volunteerData.status !== previousStatus) {
+      const existingUser = await prisma.user.findUnique({
+        where: { email: volunteer.email }
+      });
+      
+      if (existingUser) {
+        // If setting volunteer to INACTIVE, also set user to INACTIVE
+        if (volunteerData.status === 'INACTIVE') {
+          await prisma.user.update({
+            where: { id: existingUser.id },
+            data: { status: 'INACTIVE' }
+          });
+          console.log(`User account for ${volunteer.email} set to INACTIVE`);
+        } 
+        // If setting volunteer to ACTIVE and user is currently INACTIVE, reactivate user
+        else if (volunteerData.status === 'ACTIVE' && existingUser.status === 'INACTIVE') {
+          await prisma.user.update({
+            where: { id: existingUser.id },
+            data: { status: 'ACTIVE' }
+          });
+          console.log(`User account for ${volunteer.email} set to ACTIVE`);
+        }
       }
       
-      // If status changed to INACTIVE, send deactivation email
-      if (newStatus === 'INACTIVE' && previousStatus !== 'INACTIVE') {
-        await emailService.sendDeactivationEmail(updatedVolunteer);
-        console.log(`Deactivation email sent to ${updatedVolunteer.email}`);
+      // Send email based on status change
+      try {
+        // If status changed from PENDING to ACTIVE, send activation email
+        if (previousStatus === 'PENDING' && volunteerData.status === 'ACTIVE') {
+          await emailService.sendActivationEmail(updatedVolunteer);
+          console.log(`Activation email sent to ${updatedVolunteer.email}`);
+        }
+        
+        // If status changed to INACTIVE, send deactivation email
+        if (volunteerData.status === 'INACTIVE' && previousStatus !== 'INACTIVE') {
+          await emailService.sendDeactivationEmail(updatedVolunteer);
+          console.log(`Deactivation email sent to ${updatedVolunteer.email}`);
+        }
+      } catch (emailError) {
+        // Log email error but don't fail the function
+        console.error('Error sending status change email:', emailError);
+        // We continue with the function since the volunteer status has been updated
       }
-    } catch (emailError) {
-      // Log email error but don't fail the function
-      console.error('Error sending status change email:', emailError);
-      // We continue with the function since the volunteer status has been updated
     }
 
     return updatedVolunteer;
@@ -301,6 +341,6 @@ module.exports = {
   getAllVolunteers,
   getActiveVolunteers,
   getVolunteerById,
-  updateVolunteerStatus,
+  updateVolunteer,
   createAdminFromVolunteer
 };

@@ -54,7 +54,7 @@ model Volunteer {
   email           String          @unique
   wilayahId       String?
   profileImage    String?
-  jabbatan        String?
+  jabatan        String?
   status          VolunteerStatus @default(PENDING)
 
   // Relation to Wilayah

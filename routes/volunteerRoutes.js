@@ -26,7 +26,7 @@ router.get('/active', volunteerController.getActiveVolunteers); // Public endpoi
 // Protected routes (SUPERADMIN only)
 router.get('/', authenticate, authorizeSuperAdmin, volunteerController.getAllVolunteers);
 router.get('/:volunteerId', authenticate, authorizeSuperAdmin, volunteerController.getVolunteerById);
-router.put('/:volunteerId/status', authenticate, authorizeSuperAdmin, volunteerController.updateVolunteerStatus);
+router.put('/:volunteerId', authenticate, authorizeSuperAdmin, upload.single('profileImage'), volunteerController.updateVolunteer);
 
 // New route for making a volunteer into an admin
 router.post('/:volunteerId/make-admin', authenticate, authorizeSuperAdmin, volunteerController.createAdminFromVolunteer);

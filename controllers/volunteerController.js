@@ -70,25 +70,31 @@ const getVolunteerById = async (req, res) => {
   }
 };
 
-// Controller untuk mengubah status relawan
-const updateVolunteerStatus = async (req, res) => {
+// Controller untuk update data voulunteer
+const updateVolunteer = async (req, res) => {
   try {
     const { volunteerId } = req.params;
-    const { status } = req.body;
+    const volunteerData = req.body;
+    const profileImage = req.file;
     
-    if (!status || !['PENDING', 'ACTIVE', 'INACTIVE'].includes(status)) {
+    // Validate status if provided
+    if (volunteerData.status && !['PENDING', 'ACTIVE', 'INACTIVE'].includes(volunteerData.status)) {
       return res.status(400).json({ 
         message: 'Status tidak valid. Gunakan PENDING, ACTIVE, atau INACTIVE' 
       });
     }
     
-    const updatedVolunteer = await volunteerService.updateVolunteerStatus(volunteerId, status);
+    const updatedVolunteer = await volunteerService.updateVolunteer(volunteerId, volunteerData, profileImage);
     
-    let message = 'Status relawan berhasil diperbarui';
-    if (status === 'ACTIVE') {
-      message = 'Relawan berhasil diaktifkan';
-    } else if (status === 'INACTIVE') {
-      message = 'Relawan berhasil dinonaktifkan';
+    let message = 'Data relawan berhasil diperbarui';
+    
+    // Provide more specific message if status was changed
+    if (volunteerData.status) {
+      if (volunteerData.status === 'ACTIVE') {
+        message = 'Relawan berhasil diaktifkan dan data diperbarui';
+      } else if (volunteerData.status === 'INACTIVE') {
+        message = 'Relawan berhasil dinonaktifkan dan data diperbarui';
+      }
     }
     
     res.status(200).json({
@@ -122,6 +128,6 @@ module.exports = {
   getAllVolunteers,
   getActiveVolunteers,
   getVolunteerById,
-  updateVolunteerStatus,
+  updateVolunteer,
   createAdminFromVolunteer
 };

@@ -9,13 +9,25 @@ const volunteerRoutes = require('./routes/volunteerRoutes');
 
 const app = express();
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://fe-bakubantu.vercel.app"
+];
 // Middleware untuk mengizinkan CORS dengan credentials (cookies)
 app.use(cors({
-    origin: "http://localhost:3000", // Sesuaikan dengan URL frontend Anda
-    credentials: true, // Izinkan cookies dikirim dalam request
-    methods: "GET,POST,PUT,DELETE,PATCH",
-    allowedHeaders: "Content-Type,Authorization"
-  }));
+  origin: function (origin, callback) {
+    // Allow requests with no origin like mobile apps or curl
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+  methods: "GET,POST,PUT,DELETE,PATCH",
+  allowedHeaders: "Content-Type,Authorization"
+}));
 
 // Middlewares
 app.use(express.json());
