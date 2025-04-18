@@ -41,6 +41,15 @@ const register = async (email, password, role = 'ADMIN', userData = {}) => {
     if (userData.namaLengkap && userData.jenisKelamin) {
       console.log("Creating volunteer record for user");
       try {
+        // Make sure wilayahId is an integer
+        let wilayahId = userData.wilayahId;
+        if (wilayahId && typeof wilayahId === 'string') {
+          wilayahId = parseInt(wilayahId);
+          if (isNaN(wilayahId)) {
+            throw new Error('wilayahId must be a valid number');
+          }
+        }
+
         const volunteer = await prisma.volunteer.create({
           data: {
             namaLengkap: userData.namaLengkap,
@@ -51,7 +60,7 @@ const register = async (email, password, role = 'ADMIN', userData = {}) => {
             kewarganegaraan: userData.kewarganegaraan || 'Indonesia',
             nomorHP: userData.nomorHP || '',
             email: email,
-            wilayahId: userData.wilayahId,
+            wilayahId: wilayahId,
             status: 'ACTIVE'
           }
         });

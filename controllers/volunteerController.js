@@ -15,6 +15,19 @@ const registerVolunteer = async (req, res) => {
       });
     }
     
+    // Validate and convert wilayahId to integer
+    if (volunteerData.wilayahId) {
+      // Convert to integer
+      volunteerData.wilayahId = parseInt(volunteerData.wilayahId);
+      
+      // Validate that it's a valid integer
+      if (isNaN(volunteerData.wilayahId)) {
+        return res.status(400).json({
+          message: 'wilayahId harus berupa angka'
+        });
+      }
+    }
+    
     // Pass the file to the service if it exists
     const volunteer = await volunteerService.registerVolunteer(volunteerData, profileImage);
     
@@ -26,7 +39,6 @@ const registerVolunteer = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
-
 // Controller untuk mendapatkan semua relawan
 const getAllVolunteers = async (req, res) => {
   try {

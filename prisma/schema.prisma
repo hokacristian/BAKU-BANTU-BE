@@ -52,7 +52,7 @@ model Volunteer {
   kewarganegaraan String
   nomorHP         String
   email           String          @unique
-  wilayahId       String?
+  wilayahId       Int
   profileImage    String?
   jabatan        String?
   status          VolunteerStatus @default(PENDING)
@@ -65,7 +65,7 @@ model Volunteer {
 }
 
 model Wilayah {
-  id        String   @id @default(uuid())
+  id        Int    @id @default(autoincrement())
   nama      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -89,7 +89,7 @@ model DaftarPanti {
 
   // Relations
   wilayah   Wilayah? @relation(fields: [wilayahId], references: [id])
-  wilayahId String?
+  wilayahId Int
 
   detailPantis DetailPanti[]
 }

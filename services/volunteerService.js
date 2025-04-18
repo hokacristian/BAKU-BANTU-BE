@@ -20,6 +20,15 @@ const registerVolunteer = async (volunteerData, profileImage = null) => {
       throw new Error('Email sudah terdaftar');
     }
 
+    // Ensure wilayahId is an integer
+    let wilayahId = volunteerData.wilayahId;
+    if (typeof wilayahId === 'string') {
+      wilayahId = parseInt(wilayahId);
+      if (isNaN(wilayahId)) {
+        throw new Error('wilayahId harus berupa angka');
+      }
+    }
+
     // Upload profile image if provided
     let profileImageUrl = null;
     if (profileImage) {
@@ -50,8 +59,9 @@ const registerVolunteer = async (volunteerData, profileImage = null) => {
         kewarganegaraan: volunteerData.kewarganegaraan,
         nomorHP: volunteerData.nomorHP,
         email: volunteerData.email,
-        wilayahId: volunteerData.wilayahId,
-        profileImage: profileImageUrl, // Add the photo URL
+        wilayahId: wilayahId,
+        profileImage: profileImageUrl, 
+        jabatan: "Relawan",
         status: 'PENDING'
       }
     });
@@ -182,6 +192,17 @@ const updateVolunteer = async (volunteerId, volunteerData, profileImage = null) 
     if (volunteerData.tanggalLahir) {
       tanggalLahir = new Date(volunteerData.tanggalLahir);
     }
+
+    // Ensure wilayahId is an integer if provided
+    let wilayahId = volunteer.wilayahId;
+    if (volunteerData.wilayahId) {
+      wilayahId = typeof volunteerData.wilayahId === 'string' ? 
+        parseInt(volunteerData.wilayahId) : volunteerData.wilayahId;
+      
+      if (isNaN(wilayahId)) {
+        throw new Error('wilayahId harus berupa angka');
+      }
+    }
     
     // Update volunteer data
     const updatedVolunteer = await prisma.volunteer.update({
@@ -195,7 +216,7 @@ const updateVolunteer = async (volunteerId, volunteerData, profileImage = null) 
         kewarganegaraan: volunteerData.kewarganegaraan || volunteer.kewarganegaraan,
         nomorHP: volunteerData.nomorHP || volunteer.nomorHP,
         email: volunteerData.email || volunteer.email,
-        wilayahId: volunteerData.wilayahId || volunteer.wilayahId,
+        wilayahId: wilayahId,
         profileImage: profileImageUrl,
         jabatan: volunteerData.jabatan || volunteer.jabatan,
         status: volunteerData.status || volunteer.status

@@ -22,6 +22,15 @@ const registerSuperAdmin = async (req, res) => {
       return res.status(400).json({ message: 'Nama lengkap dan jenis kelamin wajib diisi' });
     }
 
+    // Ensure wilayahId is an integer if provided
+    let wilayahId = req.body.wilayahId;
+    if (wilayahId && typeof wilayahId === 'string') {
+      wilayahId = parseInt(wilayahId);
+      if (isNaN(wilayahId)) {
+        return res.status(400).json({ message: 'wilayahId harus berupa angka' });
+      }
+    }
+
     // Create userData object with all available profile fields
     const userData = {
       namaLengkap,
@@ -31,7 +40,7 @@ const registerSuperAdmin = async (req, res) => {
       alamatDomisili: req.body.alamatDomisili || '',
       kewarganegaraan: req.body.kewarganegaraan || 'Indonesia',
       nomorHP: req.body.nomorHP || '',
-      wilayahId: req.body.wilayahId,
+      wilayahId: wilayahId,
     };
 
     const user = await authService.register(email, password, 'SUPERADMIN', userData);

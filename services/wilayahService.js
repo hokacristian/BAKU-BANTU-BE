@@ -45,18 +45,6 @@ const getAllWilayah = async () => {
         }
       });
       
-      // Get volunteer names in this wilayah
-      const volunteers = await prisma.volunteer.findMany({
-        where: {
-          wilayahId: wilayah.id
-        },
-        select: {
-          id: true,
-          namaLengkap: true,
-          email: true,
-          status: true
-        }
-      });
       
       // Return wilayah with volunteer data
       // totalCount is now just the volunteersCount
@@ -64,7 +52,6 @@ const getAllWilayah = async () => {
         ...wilayah,
         volunteersCount,
         totalCount: volunteersCount,
-        volunteers
       };
     }));
     
