@@ -119,6 +119,48 @@ const updateWilayahStatus = async (req, res) => {
   }
 };
 
+// Controller for updating a region (name and status)
+const updateWilayah = async (req, res) => {
+  try {
+    const { wilayahId } = req.params;
+    const { nama, status } = req.body;
+    
+    // Check if at least one field is provided for update
+    if (!nama && !status) {
+      return res.status(400).json({ 
+        message: 'Setidaknya nama atau status harus diisi untuk pembaruan' 
+      });
+    }
+    
+    // Validate status if provided
+    if (status && !['ACTIVE', 'INACTIVE'].includes(status)) {
+      return res.status(400).json({ 
+        message: 'Status tidak valid. Gunakan ACTIVE atau INACTIVE' 
+      });
+    }
+    
+    const updatedWilayah = await wilayahService.updateWilayah(wilayahId, { nama, status });
+    
+    // Build appropriate success message based on what was updated
+    let message = 'Wilayah berhasil diperbarui';
+    
+    if (nama && status) {
+      message = 'Nama dan status wilayah berhasil diperbarui';
+    } else if (nama) {
+      message = 'Nama wilayah berhasil diperbarui';
+    } else if (status) {
+      message = `Wilayah berhasil ${status === 'ACTIVE' ? 'diaktifkan' : 'dinonaktifkan'}`;
+    }
+    
+    res.status(200).json({
+      message: message,
+      data: updatedWilayah
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createWilayah,
   getAllWilayah,
@@ -126,5 +168,6 @@ module.exports = {
   getWilayahById,
   deleteWilayah,
   updateDaftarPantiWilayah,
-  updateWilayahStatus
+  updateWilayahStatus,
+  updateWilayah
 };

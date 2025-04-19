@@ -14,4 +14,8 @@ router.delete('/:wilayahId', authenticate, authorizeSuperAdmin, wilayahControlle
 // Route untuk memperbarui wilayah pada daftar panti
 router.put('/daftar-panti/:daftarPantiId', authenticate, authorizeAdmin, wilayahController.updateDaftarPantiWilayah);
 
+// New route for updating a wilayah (name and status)
+router.put('/:wilayahId', authenticate, authorizeSuperAdmin, wilayahController.updateWilayah);
+
+
 module.exports = router;

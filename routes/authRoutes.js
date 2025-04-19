@@ -25,12 +25,12 @@ router.post('/login', authController.login);
 
 // Protected routes
 router.get('/profile', authenticate, authController.getProfile);
-router.post('/create-admin', authenticate, authorizeSuperAdmin, upload.single('profileImage'), authController.createAdmin);
-router.get('/admins', authenticate, authorizeSuperAdmin, authController.getAllAdmins);
+router.post('/', authenticate, authorizeSuperAdmin, upload.single('profileImage'), authController.createAdmin);
+router.get('/', authenticate, authorizeSuperAdmin, authController.getAllAdmins);
 
 // Admin management routes (SUPERADMIN only)
-router.delete('/admin/:adminId', authenticate, authorizeSuperAdmin, authController.deleteAdmin);
-router.post('/admin/:adminId/reset-password', authenticate, authorizeSuperAdmin, authController.resetAdminPassword);
+router.delete('/:adminId', authenticate, authorizeSuperAdmin, authController.deleteAdmin);
+router.post('/:adminId/reset-password', authenticate, authorizeSuperAdmin, authController.resetAdminPassword);
 
 // Password change route (ADMIN and SUPERADMIN)
 router.post('/change-password', authenticate, authController.changePassword);

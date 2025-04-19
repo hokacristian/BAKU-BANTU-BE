@@ -34,6 +34,7 @@ app.use(express.json());
 
 // Routes
 app.use('/auth', authRoutes);
+app.use('/admin', authRoutes,volunteerRoutes);
 app.use('/panti', pantiRoutes);
 app.use('/wilayah', wilayahRoutes);
 app.use('/volunteers', volunteerRoutes);

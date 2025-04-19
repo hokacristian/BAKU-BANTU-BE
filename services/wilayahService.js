@@ -83,8 +83,16 @@ const getActiveWilayah = async () => {
 // Function to get a region by ID
 const getWilayahById = async (wilayahId) => {
   try {
+    // Convert wilayahId to integer
+    const wilayahIdInt = parseInt(wilayahId);
+    
+    // Check if the conversion resulted in a valid number
+    if (isNaN(wilayahIdInt)) {
+      throw new Error('ID wilayah tidak valid');
+    }
+    
     const wilayah = await prisma.wilayah.findUnique({
-      where: { id: wilayahId },
+      where: { id: wilayahIdInt },
       include: {
         createdBy: {
           select: {
@@ -110,9 +118,17 @@ const getWilayahById = async (wilayahId) => {
 // Function to delete a region
 const deleteWilayah = async (wilayahId) => {
   try {
+    // Convert wilayahId to integer
+    const wilayahIdInt = parseInt(wilayahId);
+    
+    // Check if the conversion resulted in a valid number
+    if (isNaN(wilayahIdInt)) {
+      throw new Error('ID wilayah tidak valid');
+    }
+    
     // Check if the region exists
     const wilayah = await prisma.wilayah.findUnique({
-      where: { id: wilayahId },
+      where: { id: wilayahIdInt },
       include: {
         daftarPantis: true
       }
@@ -129,7 +145,7 @@ const deleteWilayah = async (wilayahId) => {
 
     // Delete the region
     const deletedWilayah = await prisma.wilayah.delete({
-      where: { id: wilayahId }
+      where: { id: wilayahIdInt }
     });
 
     return deletedWilayah;
@@ -138,22 +154,40 @@ const deleteWilayah = async (wilayahId) => {
   }
 };
 
+
 // Function to update the region of an orphanage list
 const updateDaftarPantiWilayah = async (daftarPantiId, wilayahId) => {
   try {
+    // Convert daftarPantiId to integer
+    const daftarPantiIdInt = parseInt(daftarPantiId);
+    
+    // Check if the conversion resulted in a valid number
+    if (isNaN(daftarPantiIdInt)) {
+      throw new Error('ID daftar panti tidak valid');
+    }
+    
     // Check if the orphanage list exists
     const daftarPanti = await prisma.daftarPanti.findUnique({
-      where: { id: daftarPantiId }
+      where: { id: daftarPantiIdInt }
     });
 
     if (!daftarPanti) {
       throw new Error('Daftar panti tidak ditemukan');
     }
 
-    // Check if the region exists (if wilayahId is not null)
+    // Convert wilayahId to integer if it's not null
+    let wilayahIdInt = null;
     if (wilayahId) {
+      wilayahIdInt = parseInt(wilayahId);
+      
+      // Check if the conversion resulted in a valid number
+      if (isNaN(wilayahIdInt)) {
+        throw new Error('ID wilayah tidak valid');
+      }
+      
+      // Check if the region exists
       const wilayah = await prisma.wilayah.findUnique({
-        where: { id: wilayahId }
+        where: { id: wilayahIdInt }
       });
 
       if (!wilayah) {
@@ -163,8 +197,8 @@ const updateDaftarPantiWilayah = async (daftarPantiId, wilayahId) => {
 
     // Update the region of the orphanage list
     const updatedDaftarPanti = await prisma.daftarPanti.update({
-      where: { id: daftarPantiId },
-      data: { wilayahId }
+      where: { id: daftarPantiIdInt },
+      data: { wilayahId: wilayahIdInt }
     });
 
     return updatedDaftarPanti;
@@ -176,9 +210,17 @@ const updateDaftarPantiWilayah = async (daftarPantiId, wilayahId) => {
 // Function to update wilayah status
 const updateWilayahStatus = async (wilayahId, status) => {
   try {
+    // Convert wilayahId to integer
+    const wilayahIdInt = parseInt(wilayahId);
+    
+    // Check if the conversion resulted in a valid number
+    if (isNaN(wilayahIdInt)) {
+      throw new Error('ID wilayah tidak valid');
+    }
+    
     // Check if the region exists
     const wilayah = await prisma.wilayah.findUnique({
-      where: { id: wilayahId }
+      where: { id: wilayahIdInt }
     });
 
     if (!wilayah) {
@@ -187,8 +229,59 @@ const updateWilayahStatus = async (wilayahId, status) => {
 
     // Update the status
     const updatedWilayah = await prisma.wilayah.update({
-      where: { id: wilayahId },
+      where: { id: wilayahIdInt },
       data: { status }
+    });
+
+    return updatedWilayah;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Function to update a region (name and status)
+const updateWilayah = async (wilayahId, updateData) => {
+  try {
+    // Convert wilayahId to integer
+    const wilayahIdInt = parseInt(wilayahId);
+    
+    // Check if the conversion resulted in a valid number
+    if (isNaN(wilayahIdInt)) {
+      throw new Error('ID wilayah tidak valid');
+    }
+    
+    // Check if the region exists
+    const wilayah = await prisma.wilayah.findUnique({
+      where: { id: wilayahIdInt }
+    });
+
+    if (!wilayah) {
+      throw new Error('Wilayah tidak ditemukan');
+    }
+
+    // Check if new name already exists (if name is being updated)
+    if (updateData.nama && updateData.nama !== wilayah.nama) {
+      const existingWilayah = await prisma.wilayah.findUnique({
+        where: { nama: updateData.nama }
+      });
+
+      if (existingWilayah) {
+        throw new Error('Wilayah dengan nama tersebut sudah ada');
+      }
+    }
+
+    // Validate status if provided
+    if (updateData.status && !['ACTIVE', 'INACTIVE'].includes(updateData.status)) {
+      throw new Error('Status tidak valid. Gunakan ACTIVE atau INACTIVE');
+    }
+
+    // Update the wilayah
+    const updatedWilayah = await prisma.wilayah.update({
+      where: { id: wilayahIdInt },
+      data: {
+        nama: updateData.nama || wilayah.nama,
+        status: updateData.status || wilayah.status
+      }
     });
 
     return updatedWilayah;
@@ -204,5 +297,6 @@ module.exports = {
   getWilayahById,
   deleteWilayah,
   updateDaftarPantiWilayah,
-  updateWilayahStatus
+  updateWilayahStatus,
+  updateWilayah
 };

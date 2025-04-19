@@ -29,6 +29,6 @@ router.get('/:volunteerId', authenticate, authorizeSuperAdmin, volunteerControll
 router.put('/:volunteerId', authenticate, authorizeSuperAdmin, upload.single('profileImage'), volunteerController.updateVolunteer);
 
 // New route for making a volunteer into an admin
-router.post('/:volunteerId/make-admin', authenticate, authorizeSuperAdmin, volunteerController.createAdminFromVolunteer);
+router.post('/:volunteerId', authenticate, authorizeSuperAdmin, volunteerController.createAdminFromVolunteer);
 
 module.exports = router;
