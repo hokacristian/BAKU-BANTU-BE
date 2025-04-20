@@ -6,6 +6,7 @@ const authRoutes = require('./routes/authRoutes');
 const pantiRoutes = require('./routes/pantiRoutes');
 const wilayahRoutes = require('./routes/wilayahRoutes');
 const volunteerRoutes = require('./routes/volunteerRoutes');
+const yayasanRoutes = require('./routes/yayasanRoutes'); 
 
 const app = express();
 
@@ -38,6 +39,8 @@ app.use('/admin', authRoutes,volunteerRoutes);
 app.use('/panti', pantiRoutes);
 app.use('/wilayah', wilayahRoutes);
 app.use('/volunteers', volunteerRoutes);
+app.use('/yayasan', yayasanRoutes); 
+
 
 
 

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const pantiController = require('../controllers/pantiController');
-const { authenticate, authorizeAdmin } = require('../middlewares/authMiddleware');
+const { authenticate, authorizeAdmin, authorizeSuperAdmin } = require('../middlewares/authMiddleware');
 
 // Setup multer for file upload
 const upload = multer({ 
@@ -19,14 +19,20 @@ const upload = multer({
   }
 });
 
-// Routes untuk daftar panti
-router.post('/', authenticate, authorizeAdmin, upload.single('gambar'), pantiController.createDaftarPanti);
-router.get('/', pantiController.getAllDaftarPanti);
-router.get('/:daftarPantiId', pantiController.getDaftarPantiById);
+// Public routes
+router.get('/active', pantiController.getActivePanti);
+router.get('/:pantiId', pantiController.getPantiById);
 
-// Routes untuk detail panti
-router.post('/:daftarPantiId/detail', authenticate, authorizeAdmin, pantiController.createDetailPanti);
-router.post('/:daftarPantiId/details', authenticate, authorizeAdmin, pantiController.createManyDetailPanti);
+// Protected routes (Admin and SuperAdmin)
+router.get('/', authenticate, authorizeAdmin,authorizeSuperAdmin, pantiController.getAllPanti);
+router.post('/', authenticate, authorizeAdmin, authorizeSuperAdmin ,upload.single('fotoUtama'), pantiController.createPanti);
+router.put('/:pantiId', authenticate, authorizeAdmin,authorizeSuperAdmin, upload.single('fotoUtama'), pantiController.updatePanti);
+router.delete('/:pantiId', authenticate, authorizeAdmin,authorizeSuperAdmin, pantiController.deletePanti);
+router.patch('/:pantiId/status', authenticate, authorizeAdmin,authorizeSuperAdmin, pantiController.updatePantiStatus);
+
+// Detail panti routes
+router.post('/:pantiId/detail', authenticate, authorizeAdmin,authorizeSuperAdmin, pantiController.createDetailPanti);
+router.put('/:pantiId/detail', authenticate, authorizeAdmin, authorizeSuperAdmin,pantiController.updateDetailPanti);
 router.get('/detail/:detailPantiId', pantiController.getDetailPantiById);
 
 module.exports = router;
