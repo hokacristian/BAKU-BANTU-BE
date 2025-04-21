@@ -6,7 +6,7 @@ const { authenticate, authorizeSuperAdmin } = require('../middlewares/authMiddle
 
 // Setup multer for file upload
 const upload = multer({ 
-  dest: 'uploads/',
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
@@ -20,11 +20,19 @@ const upload = multer({
 });
 
 // Public routes
-router.post('/register/superadmin', upload.single('profileImage'), authController.registerSuperAdmin);
+router.post('/register/superadmin', authController.registerSuperAdmin);
 router.post('/login', authController.login);
 
 // Protected routes
 router.get('/profile', authenticate, authController.getProfile);
-router.post('/create-admin', authenticate, authorizeSuperAdmin, upload.single('profileImage'), authController.createAdmin);
+router.post('/', authenticate, authorizeSuperAdmin, upload.single('profileImage'), authController.createAdmin);
+router.get('/', authenticate, authorizeSuperAdmin, authController.getAllAdmins);
+
+// Admin management routes (SUPERADMIN only)
+router.delete('/:adminId', authenticate, authorizeSuperAdmin, authController.deleteAdmin);
+router.post('/:adminId/reset-password', authenticate, authorizeSuperAdmin, authController.resetAdminPassword);
+
+// Password change route (ADMIN and SUPERADMIN)
+router.post('/change-password', authenticate, authController.changePassword);
 
 module.exports = router;
