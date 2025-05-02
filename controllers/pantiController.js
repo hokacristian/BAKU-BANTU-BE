@@ -1,6 +1,6 @@
 const pantiService = require('../services/pantiService');
 
-// Controller to create a new panti
+// Controller to create a new panti with detail
 const createPanti = async (req, res) => {
   try {
     const pantiData = req.body;
@@ -16,32 +16,8 @@ const createPanti = async (req, res) => {
     const panti = await pantiService.createPanti(pantiData, userId, fotoFile);
 
     res.status(201).json({
-      message: 'Panti berhasil dibuat',
+      message: 'Panti dan detail berhasil dibuat',
       data: panti
-    });
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-};
-
-// Controller to create detail panti
-const createDetailPanti = async (req, res) => {
-  try {
-    const { pantiId } = req.params;
-    const detailData = req.body;
-
-    if (!detailData.fokusPelayanan || !detailData.alamatLengkap || !detailData.deskripsiLengkap || 
-        !detailData.jumlahPengasuh || !detailData.jumlahPenghuni) {
-      return res.status(400).json({ 
-        message: 'Semua field detail panti wajib diisi' 
-      });
-    }
-
-    const detailPanti = await pantiService.createDetailPanti(detailData, pantiId);
-
-    res.status(201).json({
-      message: 'Detail panti berhasil dibuat',
-      data: detailPanti
     });
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -96,7 +72,7 @@ const getPantiById = async (req, res) => {
   }
 };
 
-// Controller to get detail panti by ID
+// Controller to get detail panti by ID (kept for backward compatibility)
 const getDetailPantiById = async (req, res) => {
   try {
     const { detailPantiId } = req.params;
@@ -212,7 +188,6 @@ const updatePantiStatus = async (req, res) => {
 
 module.exports = {
   createPanti,
-  createDetailPanti,
   getAllPanti,
   getActivePanti,
   getPantiById,

@@ -12,7 +12,9 @@ const app = express();
 
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://fe-bakubantu.vercel.app"
+  "https://fe-bakubantu.vercel.app",
+  "https://fe-bakubantuu.vercel.app"
+
 ];
 // Middleware untuk mengizinkan CORS dengan credentials (cookies)
 app.use(cors({
