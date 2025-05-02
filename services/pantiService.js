@@ -1,10 +1,10 @@
 const prisma = require('../configs/prisma');
 const imagekit = require('../configs/imagekit');
 
-// Function to create a new panti
+// Updated function to create a new panti with detail in one step
 const createPanti = async (data, userId, fotoFile = null) => {
   try {
-    // Validate required fields
+    // Validate required fields for panti
     if (!data.namaPanti || !data.deskripsiSingkat || !data.yayasanId || !data.wilayahId) {
       throw new Error('Nama panti, deskripsi singkat, ID yayasan, dan ID wilayah wajib diisi');
     }
@@ -47,25 +47,99 @@ const createPanti = async (data, userId, fotoFile = null) => {
       }
     }
 
-    // Create a new panti
-    const panti = await prisma.panti.create({
-      data: {
-        namaPanti: data.namaPanti,
-        fotoUtama: fotoUrl,
-        deskripsiSingkat: data.deskripsiSingkat,
-        status: 'ACTIVE',
-        yayasanId: parseInt(data.yayasanId),
-        wilayahId: parseInt(data.wilayahId)
+    // Create a new panti with transaction to ensure both panti and detail are created together
+    const result = await prisma.$transaction(async (prisma) => {
+      // Create the panti first
+      const panti = await prisma.panti.create({
+        data: {
+          namaPanti: data.namaPanti,
+          fotoUtama: fotoUrl,
+          deskripsiSingkat: data.deskripsiSingkat,
+          status: 'ACTIVE',
+          yayasanId: parseInt(data.yayasanId),
+          wilayahId: parseInt(data.wilayahId)
+        }
+      });
+
+      // Prepare default values for detailPanti
+      let jumlahPenghuni = { laki_laki: 0, perempuan: 0 };
+      if (data.jumlahPenghuni) {
+        if (typeof data.jumlahPenghuni === 'string') {
+          try {
+            jumlahPenghuni = JSON.parse(data.jumlahPenghuni);
+          } catch (e) {
+            jumlahPenghuni = { laki_laki: 0, perempuan: 0 };
+          }
+        } else {
+          jumlahPenghuni = data.jumlahPenghuni;
+        }
       }
+
+      let kategoriKebutuhan = [];
+      if (data.kategoriKebutuhan) {
+        if (typeof data.kategoriKebutuhan === 'string') {
+          try {
+            kategoriKebutuhan = JSON.parse(data.kategoriKebutuhan);
+          } catch (e) {
+            kategoriKebutuhan = data.kategoriKebutuhan.split(',').map(item => item.trim());
+          }
+        } else {
+          kategoriKebutuhan = data.kategoriKebutuhan;
+        }
+      }
+
+      let sumbanganDiterima = [];
+      if (data.sumbanganDiterima) {
+        if (typeof data.sumbanganDiterima === 'string') {
+          try {
+            sumbanganDiterima = JSON.parse(data.sumbanganDiterima);
+          } catch (e) {
+            sumbanganDiterima = data.sumbanganDiterima.split(',').map(item => item.trim());
+          }
+        } else {
+          sumbanganDiterima = data.sumbanganDiterima;
+        }
+      }
+
+      // Calculate total anak
+      const totalAnak = 
+        (typeof jumlahPenghuni.laki_laki === 'number' ? jumlahPenghuni.laki_laki : 0) + 
+        (typeof jumlahPenghuni.perempuan === 'number' ? jumlahPenghuni.perempuan : 0);
+      
+      // Update jumlahAnak in panti
+      await prisma.panti.update({
+        where: { id: panti.id },
+        data: { jumlahAnak: totalAnak }
+      });
+
+      // Create detailPanti with default values
+      const detailPanti = await prisma.detailPanti.create({
+        data: {
+          fokusPelayanan: data.fokusPelayanan || 'Umum',
+          alamatLengkap: data.alamatLengkap || '',
+          deskripsiLengkap: data.deskripsiLengkap || data.deskripsiSingkat || '',
+          jumlahPengasuh: data.jumlahPengasuh ? parseInt(data.jumlahPengasuh) : 0,
+          jumlahPenghuni: jumlahPenghuni,
+          kategoriKebutuhan: kategoriKebutuhan,
+          sumbanganDiterima: sumbanganDiterima,
+          pantiId: panti.id
+        }
+      });
+
+      // Return complete panti with detail
+      return {
+        ...panti,
+        detailPanti
+      };
     });
 
-    return panti;
+    return result;
   } catch (error) {
     throw error;
   }
 };
 
-// Function to get detail panti by ID
+// Function to get detail panti by ID (keeping for backward compatibility)
 const getDetailPantiById = async (detailPantiId) => {
   try {
     const detailPantiIdInt = parseInt(detailPantiId);
@@ -107,7 +181,10 @@ const updatePanti = async (pantiId, data, fotoFile = null) => {
     
     // Check if panti exists
     const panti = await prisma.panti.findUnique({
-      where: { id: pantiIdInt }
+      where: { id: pantiIdInt },
+      include: {
+        detailPanti: true
+      }
     });
 
     if (!panti) {
@@ -158,17 +235,27 @@ const updatePanti = async (pantiId, data, fotoFile = null) => {
       }
     }
 
-    // Update panti
-    const updatedPanti = await prisma.panti.update({
+    // Update panti with transaction to update both panti and detail
+    const result = await prisma.$transaction(async (prisma) => {
+      // Update panti
+      const updatedPanti = await prisma.panti.update({
+        where: { id: pantiIdInt },
+        data: {
+          namaPanti: data.namaPanti || panti.namaPanti,
+          fotoUtama: fotoUrl,
+          deskripsiSingkat: data.deskripsiSingkat || panti.deskripsiSingkat,
+          status: data.status || panti.status,
+          yayasanId: yayasanId,
+          wilayahId: wilayahId
+        }
+      });
+
+      return updatedPanti;
+    });
+
+    // Get the updated panti with all relationships
+    const updatedPanti = await prisma.panti.findUnique({
       where: { id: pantiIdInt },
-      data: {
-        namaPanti: data.namaPanti || panti.namaPanti,
-        fotoUtama: fotoUrl,
-        deskripsiSingkat: data.deskripsiSingkat || panti.deskripsiSingkat,
-        status: data.status || panti.status,
-        yayasanId: yayasanId,
-        wilayahId: wilayahId
-      },
       include: {
         yayasan: true,
         wilayah: true,
@@ -300,19 +387,24 @@ const deletePanti = async (pantiId) => {
       throw new Error('Panti tidak ditemukan');
     }
 
-    // Delete detail panti if exists
-    if (panti.detailPanti) {
-      await prisma.detailPanti.delete({
-        where: { pantiId: pantiIdInt }
-      });
-    }
+    // Delete with transaction to ensure both detail and panti are deleted
+    const result = await prisma.$transaction(async (prisma) => {
+      // Delete detail panti if exists
+      if (panti.detailPanti) {
+        await prisma.detailPanti.delete({
+          where: { pantiId: pantiIdInt }
+        });
+      }
 
-    // Delete panti
-    const deletedPanti = await prisma.panti.delete({
-      where: { id: pantiIdInt }
+      // Delete panti
+      const deletedPanti = await prisma.panti.delete({
+        where: { id: pantiIdInt }
+      });
+
+      return deletedPanti;
     });
 
-    return deletedPanti;
+    return result;
   } catch (error) {
     throw error;
   }
@@ -347,96 +439,6 @@ const updatePantiStatus = async (pantiId, status) => {
     });
 
     return updatedPanti;
-  } catch (error) {
-    throw error;
-  }
-};
-
-
-// Function to create detail panti
-const createDetailPanti = async (data, pantiId) => {
-  try {
-    // Validate required fields
-    if (!data.fokusPelayanan || !data.alamatLengkap || !data.deskripsiLengkap || 
-        !data.jumlahPengasuh || !data.jumlahPenghuni) {
-      throw new Error('Semua field detail panti wajib diisi');
-    }
-    
-    // Check if panti exists
-    const panti = await prisma.panti.findUnique({
-      where: { id: parseInt(pantiId) }
-    });
-
-    if (!panti) {
-      throw new Error('Panti tidak ditemukan');
-    }
-
-    // Check if detail panti already exists for this panti
-    const existingDetail = await prisma.detailPanti.findUnique({
-      where: { pantiId: parseInt(pantiId) }
-    });
-
-    if (existingDetail) {
-      throw new Error('Detail panti untuk panti ini sudah ada');
-    }
-
-    // Process jumlahPenghuni
-    let jumlahPenghuni = data.jumlahPenghuni;
-    if (typeof jumlahPenghuni === 'string') {
-      try {
-        jumlahPenghuni = JSON.parse(jumlahPenghuni);
-      } catch (e) {
-        throw new Error('Format jumlah penghuni tidak valid');
-      }
-    }
-
-    // Process kategoriKebutuhan
-    let kategoriKebutuhan = data.kategoriKebutuhan;
-    if (typeof kategoriKebutuhan === 'string') {
-      try {
-        kategoriKebutuhan = JSON.parse(kategoriKebutuhan);
-      } catch (e) {
-        // If it's a comma-separated string, convert to array
-        kategoriKebutuhan = kategoriKebutuhan.split(',').map(item => item.trim());
-      }
-    }
-
-    // Process sumbanganDiterima
-    let sumbanganDiterima = data.sumbanganDiterima;
-    if (typeof sumbanganDiterima === 'string') {
-      try {
-        sumbanganDiterima = JSON.parse(sumbanganDiterima);
-      } catch (e) {
-        // If it's a comma-separated string, convert to array
-        sumbanganDiterima = sumbanganDiterima.split(',').map(item => item.trim());
-      }
-    }
-
-    // Create detail panti
-    const detailPanti = await prisma.detailPanti.create({
-      data: {
-        fokusPelayanan: data.fokusPelayanan,
-        alamatLengkap: data.alamatLengkap,
-        deskripsiLengkap: data.deskripsiLengkap,
-        jumlahPengasuh: parseInt(data.jumlahPengasuh),
-        jumlahPenghuni: jumlahPenghuni,
-        kategoriKebutuhan: kategoriKebutuhan,
-        sumbanganDiterima: sumbanganDiterima,
-        pantiId: parseInt(pantiId)
-      }
-    });
-
-    // Update jumlahAnak in panti (sum of laki_laki and perempuan from jumlahPenghuni)
-    const totalAnak = 
-      (typeof jumlahPenghuni.laki_laki === 'number' ? jumlahPenghuni.laki_laki : 0) + 
-      (typeof jumlahPenghuni.perempuan === 'number' ? jumlahPenghuni.perempuan : 0);
-    
-    await prisma.panti.update({
-      where: { id: parseInt(pantiId) },
-      data: { jumlahAnak: totalAnak }
-    });
-
-    return detailPanti;
   } catch (error) {
     throw error;
   }
@@ -590,7 +592,6 @@ const getPantiById = async (pantiId) => {
 
 module.exports = {
   createPanti,
-  createDetailPanti,
   getAllPanti,
   getActivePanti,
   getPantiById,

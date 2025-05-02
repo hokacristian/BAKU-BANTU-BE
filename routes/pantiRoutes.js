@@ -24,15 +24,16 @@ router.get('/active', pantiController.getActivePanti);
 router.get('/:pantiId', pantiController.getPantiById);
 
 // Protected routes (Admin and SuperAdmin)
-router.get('/', authenticate, authorizeAdmin,authorizeSuperAdmin, pantiController.getAllPanti);
-router.post('/', authenticate, authorizeAdmin, authorizeSuperAdmin ,upload.single('fotoUtama'), pantiController.createPanti);
-router.put('/:pantiId', authenticate, authorizeAdmin,authorizeSuperAdmin, upload.single('fotoUtama'), pantiController.updatePanti);
-router.delete('/:pantiId', authenticate, authorizeAdmin,authorizeSuperAdmin, pantiController.deletePanti);
-router.patch('/:pantiId/status', authenticate, authorizeAdmin,authorizeSuperAdmin, pantiController.updatePantiStatus);
+router.get('/', authenticate, authorizeAdmin, authorizeSuperAdmin, pantiController.getAllPanti);
+router.post('/', authenticate, authorizeAdmin, authorizeSuperAdmin, upload.single('fotoUtama'), pantiController.createPanti);
+router.put('/:pantiId', authenticate, authorizeAdmin, authorizeSuperAdmin, upload.single('fotoUtama'), pantiController.updatePanti);
+router.delete('/:pantiId', authenticate, authorizeAdmin, authorizeSuperAdmin, pantiController.deletePanti);
+router.patch('/:pantiId/status', authenticate, authorizeAdmin, authorizeSuperAdmin, pantiController.updatePantiStatus);
 
-// Detail panti routes
-router.post('/:pantiId/detail', authenticate, authorizeAdmin,authorizeSuperAdmin, pantiController.createDetailPanti);
-router.put('/:pantiId/detail', authenticate, authorizeAdmin, authorizeSuperAdmin,pantiController.updateDetailPanti);
+// Detail panti routes - now only updateDetailPanti is needed since createDetailPanti is done automatically
+router.put('/:pantiId/detail', authenticate, authorizeAdmin, authorizeSuperAdmin, pantiController.updateDetailPanti);
+
+// Keep this route for backward compatibility
 router.get('/detail/:detailPantiId', pantiController.getDetailPantiById);
 
 module.exports = router;
